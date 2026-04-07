@@ -1,0 +1,8 @@
+crawl4ai
+crewai
+requests
+apscheduler
+fastapi
+uvicorn[standard]
+pydantic
+python-dotenv

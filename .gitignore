@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Build and packaging
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Runtime / logs
+*.log
+logs/
+
+# Local data / outputs
+*.sqlite3
+*.db
+*.jsonl
+
+# Project-generated outputs
+thanh_nien_latest_articles.json
+
+# CrewAI local artifacts
+.crewai/
+
+# Node artifacts if frontend is added later
+node_modules/

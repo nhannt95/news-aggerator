@@ -1,0 +1,19 @@
+from fastapi import FastAPI
+
+from src.api.routers.admin import router as admin_router
+from src.api.routers.projects import router as projects_router
+from src.api.routers.runtime import router as runtime_router
+from src.api.routers.scheduler import router as scheduler_router
+
+
+app = FastAPI(title="News Aggregator Control API", version="0.1.0")
+
+app.include_router(runtime_router)
+app.include_router(scheduler_router)
+app.include_router(admin_router)
+app.include_router(projects_router)
+
+
+@app.get("/health")
+def health() -> dict[str, str]:
+    return {"status": "ok"}
