@@ -14,7 +14,7 @@ MOCK_RUNTIME_CONFIGS = {
                 "goal": "Classify legal articles by relevance, topic, and urgency.",
                 "backstory": "Triages legal news for downstream processing.",
                 "tools": ["latest_news_link_crawler"],
-                "llm": "llama3.1",
+                "llm": "llama3.2:1b",
                 "verbose": True,
                 "allow_delegation": False,
                 "enabled": True,
@@ -25,7 +25,7 @@ MOCK_RUNTIME_CONFIGS = {
                 "goal": "Write concise legal reports from classified findings.",
                 "backstory": "Summarizes legal developments into usable output.",
                 "tools": [],
-                "llm": "llama3.1",
+                "llm": "llama3.2:1b",
                 "verbose": True,
                 "allow_delegation": False,
                 "enabled": True,
@@ -36,7 +36,7 @@ MOCK_RUNTIME_CONFIGS = {
                 "goal": "Summarize relevant legal articles and translate the summary into target languages.",
                 "backstory": "Creates concise summaries and multilingual outputs for legal monitoring.",
                 "tools": [],
-                "llm": "llama3.1",
+                "llm": "llama3.2:1b",
                 "verbose": True,
                 "allow_delegation": False,
                 "enabled": True,
@@ -119,7 +119,7 @@ MOCK_RUNTIME_CONFIGS = {
                 "goal": "Classify ER articles by urgency, impact, and severity.",
                 "backstory": "Screens emergency-response news for downstream workflows.",
                 "tools": ["latest_news_link_crawler"],
-                "llm": "llama3.1",
+                "llm": "llama3.2:1b",
                 "verbose": True,
                 "allow_delegation": False,
                 "enabled": True,
@@ -130,7 +130,7 @@ MOCK_RUNTIME_CONFIGS = {
                 "goal": "Write concise ER reports from classified findings.",
                 "backstory": "Converts urgent article signals into operational output.",
                 "tools": [],
-                "llm": "llama3.1",
+                "llm": "llama3.2:1b",
                 "verbose": True,
                 "allow_delegation": False,
                 "enabled": True,
@@ -171,6 +171,48 @@ MOCK_RUNTIME_CONFIGS = {
                 "task_keys": ["write_report"],
                 "enabled": True,
             },
+        ],
+    },
+    "legal_task_report": {
+        "project_name": "legal_task_report",
+        "version": "2026-04-08.1",
+        "enabled": True,
+        "metadata": {
+            "description": "Legal reporting workflow for summarized articles",
+            "owner": "legal-team",
+        },
+        "agents": [
+            {
+                "agent_key": "reporter",
+                "role": "Legal Report Writer",
+                "goal": "Write concise legal reports from summarized legal findings.",
+                "backstory": "Produces report outputs from already processed legal articles.",
+                "tools": [],
+                "llm": "llama3.2:1b",
+                "verbose": True,
+                "allow_delegation": False,
+                "enabled": True,
+            }
+        ],
+        "tasks": [
+            {
+                "task_key": "write_report",
+                "description": "Write the final legal report from the provided summary, translations, and classification result.",
+                "expected_output": "A concise legal report for downstream users.",
+                "agent_key": "reporter",
+                "context_task_keys": [],
+                "output_key": "report_result",
+                "enabled": True,
+            }
+        ],
+        "crews": [
+            {
+                "crew_key": "reporting",
+                "process": "sequential",
+                "agent_keys": ["reporter"],
+                "task_keys": ["write_report"],
+                "enabled": True,
+            }
         ],
     },
 }

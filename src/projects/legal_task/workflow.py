@@ -10,9 +10,6 @@ from src.infrastructure.api_clients.news_source_api_client import NewsSourceApiC
 from src.projects.legal_task.crews.classification.crew import (
     build_crew as build_classification_crew,
 )
-from src.projects.legal_task.crews.reporting.crew import (
-    build_crew as build_reporting_crew,
-)
 from src.projects.legal_task.crews.summary_translation.crew import (
     build_crew as build_summary_translation_crew,
 )
@@ -191,34 +188,6 @@ class LegalTaskWorkflow:
             "is_relevant": is_relevant,
         }
 
-    @staticmethod
-    def run_reporting(
-        article: ArticleContent,
-        source: NewsSite,
-        classification_result: dict[str, Any],
-    ) -> dict[str, Any]:
-        reporting_input = {
-            "source": {
-                "site_id": source.site_id,
-                "name": source.name,
-                "language": source.language,
-            },
-            "article": {
-                "url": article.url,
-                "title": article.title,
-                "published_at": article.published_at,
-                "content": article.content_markdown,
-            },
-            "classification_result": classification_result["raw_result"],
-            "relevance_score": classification_result["relevance_score"],
-        }
-        result = build_reporting_crew(reporting_input).kickoff(inputs=reporting_input)
-        structured_result = LegalTaskWorkflow._result_to_dict(result)
-        return {
-            "raw_result": str(result),
-            "structured_result": structured_result,
-        }
-
     def process_site(self, site: NewsSite) -> list[dict[str, Any]]:
         logger.info("Processing site %s", site.latest_page_url)
         link_crawler = LatestNewsLinkCrawler(source_urls=[site.latest_page_url])
@@ -237,7 +206,6 @@ class LegalTaskWorkflow:
         saved_payload: list[dict[str, Any]] = []
         for article in article_contents:
             classification = self.run_classification(article, site)
-            analysis = self.run_reporting(article, site, classification)
 
             item: dict[str, Any] = {
                 "project_name": "legal_task",
@@ -254,8 +222,7 @@ class LegalTaskWorkflow:
                 "relevance_score": classification["relevance_score"],
                 "classification_result": classification["raw_result"],
                 "classification_structured": classification["structured_result"],
-                "analysis_and_recommendation": analysis["raw_result"],
-                "reporting_structured": analysis["structured_result"],
+                "report_generated": False,
             }
 
             if classification["is_relevant"]:

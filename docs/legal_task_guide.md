@@ -1,379 +1,235 @@
 # Legal Task Guide
 
-Tài liệu này mô tả:
+Tai lieu nay mo ta `legal_task` theo mo hinh hien tai.
 
-- cách start `legal_task`
-- project sẽ chạy qua file nào, hàm nào
-- dữ liệu đi từ đâu đến đâu
+`legal_task` chi lam ingest:
 
-## 1. Mục tiêu của `legal_task`
+1. Lay source tu API
+2. Lay bai moi hon `last_crawled_at`
+3. Crawl content
+4. Chay `classification`
+5. Neu du lien quan thi chay `summary_translation`
+6. Luu vao `/processed-articles`
 
-`legal_task` dùng để:
+`legal_task` khong chay `reporting` nua. Reporting da tach sang project [legal_task_report](d:\Project\Python\news-aggerator\src\projects\legal_task_report\workflow.py).
 
-1. lấy danh sách trang báo từ API
-2. lấy các bài mới hơn `last_crawled_at`
-3. crawl nội dung bài viết
-4. phân loại bài viết có đúng chủ đề legal không
-5. đánh giá mức độ liên quan
-6. phân tích và đưa ra đề xuất
-7. nếu bài viết đủ liên quan thì summary và translate
-8. gọi API để lưu kết quả
+## 1. Cach start
 
-## 2. Cần start gì trước
-
-### 2.1 Start mock API server
+Start mock API:
 
 ```powershell
 .\.venv\Scripts\python -m uvicorn src.api.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Mock API hiện cung cấp:
-
-- `/news-sites`
-- `/projects/{project_name}/runtime-config`
-- `/scheduler-configs`
-- `/processed-articles`
-
-### 2.2 Start Ollama
+Start Ollama:
 
 ```powershell
 ollama serve
 ```
 
-Kiểm tra model:
-
-```powershell
-ollama list
-```
-
-### 2.3 Kiểm tra `.env`
-
-Bạn nên có:
-
-```env
-NEWS_SOURCE_API_BASE_URL=http://127.0.0.1:8000
-RUNTIME_CONFIG_API_BASE_URL=http://127.0.0.1:8000
-SCHEDULER_API_BASE_URL=http://127.0.0.1:8000
-OLLAMA_BASE_URL=http://127.0.0.1:11434
-OLLAMA_MODEL=llama3.1
-```
-
-## 3. Cách start `legal_task`
-
-Chạy trực tiếp project:
+Chay project:
 
 ```powershell
 .\.venv\Scripts\python scripts/run_project.py --project legal_task --input "{}"
 ```
 
-Nếu bạn muốn truyền input thêm:
+## 2. File va ham duoc goi
 
-```powershell
-.\.venv\Scripts\python scripts/run_project.py --project legal_task --input "{\"trigger\":\"manual\"}"
-```
+Entry point:
 
-## 4. Luồng chạy qua file nào
+- [run_project.py](d:\Project\Python\news-aggerator\scripts\run_project.py)
+  - `main()`
+  - `parse_args()`
 
-Khi chạy lệnh ở trên, hệ thống sẽ đi qua các file sau.
+Runner:
 
-### Bước 1. Entry point script
+- [runner.py](d:\Project\Python\news-aggerator\src\app\runner.py)
+  - `run_project(project_name, project_input)`
 
-File:
-[run_project.py](d:\Project\Python\news-aggerator\scripts\run_project.py)
+Registry:
 
-Hàm:
-- `main()`
-- `parse_args()`
+- [registry.py](d:\Project\Python\news-aggerator\src\app\registry.py)
+  - `PROJECT_REGISTRY`
 
-Việc làm:
-- đọc `--project`
-- đọc `--input`
-- gọi `run_project(project_name, project_input)`
+Pipeline:
 
-### Bước 2. App runner
+- [pipeline.py](d:\Project\Python\news-aggerator\src\projects\legal_task\pipeline.py)
+  - `run(project_input)`
 
-File:
-[runner.py](d:\Project\Python\news-aggerator\src\app\runner.py)
+Workflow chinh:
 
-Hàm:
-- `run_project(project_name, project_input)`
+- [workflow.py](d:\Project\Python\news-aggerator\src\projects\legal_task\workflow.py)
+  - `LegalTaskWorkflow.run()`
+  - `fetch_sources()`
+  - `process_site(site)`
+  - `filter_new_articles(site, articles)`
+  - `run_classification(article, source)`
+  - `run_summary_translation(article, source)`
+  - `_result_to_dict(result)`
 
-Việc làm:
-- lấy pipeline tương ứng từ registry
+## 3. Source duoc lay tu dau
 
-File registry:
-[registry.py](d:\Project\Python\news-aggerator\src\app\registry.py)
+API client:
 
-Biến:
-- `PROJECT_REGISTRY`
+- [news_source_api_client.py](d:\Project\Python\news-aggerator\src\infrastructure\api_clients\news_source_api_client.py)
+  - `get_latest_pages(project_name=None)`
 
-Với `legal_task`, registry map sang:
-- `src.projects.legal_task.pipeline.run`
+Fetcher:
 
-### Bước 3. Project pipeline
+- [source_fetcher.py](d:\Project\Python\news-aggerator\src\tools\sources\source_fetcher.py)
+  - `fetch_sites(project_name=None)`
 
-File:
-[pipeline.py](d:\Project\Python\news-aggerator\src\projects\legal_task\pipeline.py)
+Model:
 
-Hàm:
-- `run(project_input)`
+- [news_site.py](d:\Project\Python\news-aggerator\src\common\models\news_site.py)
 
-Việc làm:
-- khởi tạo `LegalTaskWorkflow`
-- gọi `workflow.run()`
+Mock API hien tai tra source cho `legal_task` tu:
 
-### Bước 4. Workflow chính
+- Thanh Nien
+- Dan Tri
 
-File:
-[workflow.py](d:\Project\Python\news-aggerator\src\projects\legal_task\workflow.py)
+Mock data:
 
-Class:
-- `LegalTaskWorkflow`
+- [news_sites.py](d:\Project\Python\news-aggerator\src\api\mock_data\news_sites.py)
 
-Hàm quan trọng:
+## 4. Lay link bai moi
 
-- `run()`
-  - entry point chính của workflow
-  - lấy danh sách source
-  - loop qua từng source
-  - gom kết quả
-  - gọi API lưu kết quả
+Crawler:
 
-- `fetch_sources()`
-  - gọi `SourceFetcher.fetch_sites(project_name="legal_task")`
-  - chỉ giữ source active
+- [latest_news_link_crawler.py](d:\Project\Python\news-aggerator\src\tools\crawlers\latest_news_link_crawler.py)
+  - `extract_latest_links(limit_per_source=None)`
+  - `extract_links_from_listing(crawler, source_url, limit=None)`
+  - `crawl_article_info(crawler, url)`
 
-- `process_site(site)`
-  - với từng source:
-  - lấy link bài mới
-  - lọc bài mới hơn `last_crawled_at`
-  - crawl content từng bài
-  - classify
-  - reporting
-  - nếu đủ liên quan thì summary + translate
-  - build payload để save
+Viec lam:
 
-- `filter_new_articles(site, articles)`
-  - so sánh `article.published_at` với `site.last_crawled_at`
+- vao listing page
+- lay danh sach link bai viet
+- lay `url`, `title`, `published_at`
+- loc bai moi hon `last_crawled_at`
 
-- `run_classification(article, source)`
-  - gọi classification crew
-  - đọc structured output JSON
-  - fallback nếu model chưa trả JSON hợp lệ
+## 5. Lay content bai viet
 
-- `run_reporting(article, source, classification_result)`
-  - gọi reporting crew
-  - đọc structured output JSON
+Crawler:
 
-- `run_summary_translation(article, source)`
-  - gọi summary_translation crew
-  - đọc structured output JSON
-  - fallback nếu model chưa trả JSON hợp lệ
+- [article_content_crawler.py](d:\Project\Python\news-aggerator\src\tools\crawlers\article_content_crawler.py)
+  - `crawl(url)`
+  - `crawl_many(urls)`
+  - `crawl_article(crawler, url)`
 
-- `_result_to_dict(result)`
-  - convert `CrewOutput` thành dict
-  - ưu tiên `json_dict`
+Viec lam:
 
-## 5. Source được lấy như thế nào
+- crawl tung bai viet
+- lay `title`
+- lay `published_at`
+- lay `author`
+- lay `description`
+- lay `content_markdown`
 
-### API client
+## 6. Crew duoc goi trong `legal_task`
 
-File:
-[news_source_api_client.py](d:\Project\Python\news-aggerator\src\infrastructure\api_clients\news_source_api_client.py)
+Classification:
 
-Hàm:
-- `get_latest_pages(project_name=None)`
+- [classification/crew.py](d:\Project\Python\news-aggerator\src\projects\legal_task\crews\classification\crew.py)
+  - `build_crew(project_input)`
 
-Endpoint gọi:
-- `GET /news-sites?project_name=legal_task`
+Summary translation:
 
-### Source fetcher
+- [summary_translation/crew.py](d:\Project\Python\news-aggerator\src\projects\legal_task\crews\summary_translation\crew.py)
+  - `build_crew(project_input)`
 
-File:
-[source_fetcher.py](d:\Project\Python\news-aggerator\src\tools\sources\source_fetcher.py)
+`legal_task` hien tai khong goi:
 
-Hàm:
-- `fetch_sites(project_name=None)`
+- [reporting/crew.py](d:\Project\Python\news-aggerator\src\projects\legal_task\crews\reporting\crew.py)
 
-Việc làm:
-- gọi API client
-- map response sang model `NewsSite`
+Reporting da duoc tach sang:
 
-### Model source
+- [legal_task_report workflow](d:\Project\Python\news-aggerator\src\projects\legal_task_report\workflow.py)
 
-File:
-[news_site.py](d:\Project\Python\news-aggerator\src\common\models\news_site.py)
+## 7. Runtime config cua agent task crew
 
-Field chính:
-- `site_id`
-- `name`
-- `latest_page_url`
-- `language`
-- `last_crawled_at`
-- `relevance_threshold`
-- `target_languages`
+Provider:
 
-## 6. Link bài mới được lấy như thế nào
+- [project_runtime_provider.py](d:\Project\Python\news-aggerator\src\app\runtime\project_runtime_provider.py)
+  - `load_project_runtime_config(project_name)`
 
-File:
-[latest_news_link_crawler.py](d:\Project\Python\news-aggerator\src\tools\crawlers\latest_news_link_crawler.py)
+API client:
 
-Class:
-- `LatestNewsLinkCrawler`
+- [project_runtime_api_client.py](d:\Project\Python\news-aggerator\src\infrastructure\api_clients\project_runtime_api_client.py)
 
-Hàm quan trọng:
-- `extract_latest_links(limit_per_source=None)`
-- `extract_links_from_listing(crawler, source_url, limit=None)`
-- `crawl_article_info(crawler, url)`
+Mock runtime config:
 
-Việc làm:
-- crawl trang listing
-- lấy link internal
-- lọc link bài báo
-- crawl sơ bộ để lấy `url`, `title`, `published_at`
+- [runtime_configs.py](d:\Project\Python\news-aggerator\src\api\mock_data\runtime_configs.py)
 
-## 7. Content bài viết được lấy như thế nào
+Builder:
 
-File:
-[article_content_crawler.py](d:\Project\Python\news-aggerator\src\tools\crawlers\article_content_crawler.py)
+- [crewai_runtime_builder.py](d:\Project\Python\news-aggerator\src\app\runtime\crewai_runtime_builder.py)
+  - `build_agents_from_config(...)`
+  - `build_tasks_from_config(...)`
+  - `build_crew_from_runtime(...)`
 
-Class:
-- `ArticleContentCrawler`
+Tat ca agent dang dung Ollama local qua:
 
-Hàm quan trọng:
-- `crawl(url)`
-- `crawl_many(urls)`
-- `crawl_article(crawler, url)`
+- `OLLAMA_BASE_URL`
+- `OLLAMA_MODEL`
 
-Việc làm:
-- crawl từng URL bài viết
-- lấy:
-  - `title`
-  - `published_at`
-  - `author`
-  - `description`
-  - `content_markdown`
-  - `metadata`
-
-## 8. Crew nào được gọi trong `legal_task`
-
-### 8.1 Classification crew
-
-File:
-[classification crew](d:\Project\Python\news-aggerator\src\projects\legal_task\crews\classification\crew.py)
-
-Hàm:
-- `build_crew(project_input)`
-
-Mục đích:
-- xác định bài có liên quan legal không
-- trả JSON theo schema
+## 8. Structured JSON output
 
 Schema output:
-[output_models.py](d:\Project\Python\news-aggerator\src\projects\legal_task\output_models.py)
 
-Class:
-- `ClassificationOutput`
+- [output_models.py](d:\Project\Python\news-aggerator\src\projects\legal_task\output_models.py)
 
-### 8.2 Reporting crew
+Registry schema:
 
-File:
-[reporting crew](d:\Project\Python\news-aggerator\src\projects\legal_task\crews\reporting\crew.py)
+- [output_registry.py](d:\Project\Python\news-aggerator\src\projects\legal_task\output_registry.py)
 
-Hàm:
-- `build_crew(project_input)`
+Workflow doc ket qua tu `CrewOutput.json_dict` truoc. Neu model tra sai format thi moi fallback.
 
-Mục đích:
-- phân tích bài viết
-- nêu đề xuất
-- trả JSON theo schema
-
-Schema:
-- `ReportingOutput`
-
-### 8.3 Summary translation crew
-
-File:
-[summary_translation crew](d:\Project\Python\news-aggerator\src\projects\legal_task\crews\summary_translation\crew.py)
-
-Hàm:
-- `build_crew(project_input)`
-
-Mục đích:
-- tóm tắt bài viết
-- dịch summary sang 2 ngôn ngữ đích
-- trả JSON theo schema
-
-Schema:
-- `SummaryTranslationOutput`
-
-## 9. Runtime config của agents/tasks/crews được lấy ở đâu
-
-Project hiện không hardcode config agent/task trong project code nữa.
-
-Nó được lấy từ runtime config API:
-
-File provider:
-[project_runtime_provider.py](d:\Project\Python\news-aggerator\src\app\runtime\project_runtime_provider.py)
-
-Hàm:
-- `load_project_runtime_config(project_name)`
+## 9. Save ket qua di dau
 
 API client:
-[project_runtime_api_client.py](d:\Project\Python\news-aggerator\src\infrastructure\api_clients\project_runtime_api_client.py)
+
+- [news_source_api_client.py](d:\Project\Python\news-aggerator\src\infrastructure\api_clients\news_source_api_client.py)
+  - `save_processed_articles(payload)`
+
+Mock API:
+
+- [storage.py](d:\Project\Python\news-aggerator\src\api\routers\storage.py)
+- [processed_article_service.py](d:\Project\Python\news-aggerator\src\api\services\processed_article_service.py)
 
 Endpoint:
-- `GET /projects/legal_task/runtime-config`
 
-Mock data hiện tại:
-[runtime_configs.py](d:\Project\Python\news-aggerator\src\api\mock_data\runtime_configs.py)
-
-## 10. Agent/Crew được build như thế nào
-
-File:
-[crewai_runtime_builder.py](d:\Project\Python\news-aggerator\src\app\runtime\crewai_runtime_builder.py)
-
-Hàm:
-- `build_agents_from_config(...)`
-- `build_tasks_from_config(...)`
-- `build_crew_from_runtime(...)`
-
-Việc làm:
-- build `Agent` từ runtime config
-- build `Task` từ runtime config
-- gắn `output_json` schema cho task cuối
-- build `Crew`
-- tất cả agent dùng Ollama local qua:
-  - `OLLAMA_BASE_URL`
-  - `OLLAMA_MODEL`
-
-## 11. Kết quả lưu đi đâu
-
-API client:
-[news_source_api_client.py](d:\Project\Python\news-aggerator\src\infrastructure\api_clients\news_source_api_client.py)
-
-Hàm:
-- `save_processed_articles(payload)`
-
-Endpoint:
 - `POST /processed-articles`
 
-Mock API router:
-[storage.py](d:\Project\Python\news-aggerator\src\api\routers\storage.py)
+## 10. Scheduler chay nhu the nao
 
-Mock service:
-[processed_article_service.py](d:\Project\Python\news-aggerator\src\api\services\processed_article_service.py)
+`legal_task` duoc scheduler goi theo project, khong goi theo crew.
 
-## 12. Dữ liệu output cuối của workflow
+Mock scheduler config:
 
-`LegalTaskWorkflow.run()` hiện trả về:
+- [scheduler_configs.py](d:\Project\Python\news-aggerator\src\api\mock_data\scheduler_configs.py)
+
+Lich hien tai:
+
+- `legal_task`: 0h, 6h, 12h
+- `legal_task_report`: 14h
+
+Chay dry run:
+
+```powershell
+.\.venv\Scripts\python scripts/run_scheduler.py --dry-run
+```
+
+## 11. Dau ra chinh cua workflow
+
+`LegalTaskWorkflow.run()` tra ve:
 
 - `source_count`
 - `processed_count`
 - `save_result`
 - `items`
 
-Mỗi item có thể có:
+Moi item co the co:
 
 - `project_name`
 - `site_id`
@@ -389,29 +245,12 @@ Mỗi item có thể có:
 - `relevance_score`
 - `classification_result`
 - `classification_structured`
-- `analysis_and_recommendation`
-- `reporting_structured`
 - `summary`
 - `translations`
 - `summary_translation_result`
 
-## 13. Mock API nào cần chạy để test
+## 12. Luu y
 
-Để test `legal_task`, hiện bạn cần ít nhất các endpoint mock sau đang chạy:
-
-- `GET /news-sites`
-- `GET /projects/legal_task/runtime-config`
-- `POST /processed-articles`
-
-Tất cả đang nằm trong:
-- [main.py](d:\Project\Python\news-aggerator\src\api\main.py)
-
-## 14. Lưu ý hiện tại
-
-- `classification`, `reporting`, `summary_translation` đã hỗ trợ structured JSON output
-- workflow hiện ưu tiên đọc `json_dict`
-- vẫn có fallback nếu model local không trả JSON đúng
-- để production ổn hơn, prompt trong runtime config nên yêu cầu:
-  - chỉ trả JSON hợp lệ
-  - không thêm giải thích ngoài JSON
-  - field phải đúng schema
+- Khong can truyen `topic=legal` trong command.
+- Topic/domain nen nam trong prompt va runtime config.
+- Neu muon reporting, chay project `legal_task_report`.

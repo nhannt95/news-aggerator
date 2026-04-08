@@ -17,8 +17,8 @@ class Settings:
     scheduler_api_key: str = os.getenv("SCHEDULER_API_KEY", "")
     runtime_config_api_base_url: str = os.getenv("RUNTIME_CONFIG_API_BASE_URL", "")
     runtime_config_api_key: str = os.getenv("RUNTIME_CONFIG_API_KEY", "")
-    ollama_base_url: str = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
-    ollama_model: str = os.getenv("OLLAMA_MODEL", "llama3.1")
+    ollama_base_url: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    ollama_model: str = os.getenv("OLLAMA_MODEL", "llama3.2:1b")
 
     @property
     def local_api_base_url(self) -> str:
