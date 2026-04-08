@@ -30,7 +30,7 @@ ollama serve
 Chay project:
 
 ```powershell
-.\.venv\Scripts\python scripts/run_project.py --project legal_task --input "{}"
+.\.venv\Scripts\python scripts/run_project.py --project legal_task
 ```
 
 ## 2. File va ham duoc goi
@@ -251,6 +251,6 @@ Moi item co the co:
 
 ## 12. Luu y
 
-- Khong can truyen `topic=legal` trong command.
+- `--input` la optional. Neu khong truyen, CLI se tu dung `{}`.
 - Topic/domain nen nam trong prompt va runtime config.
 - Neu muon reporting, chay project `legal_task_report`.

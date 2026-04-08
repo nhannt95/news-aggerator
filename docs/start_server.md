@@ -70,19 +70,19 @@ ollama list
 `legal_task` la ingest:
 
 ```powershell
-.\.venv\Scripts\python scripts/run_project.py --project legal_task --input "{}"
+.\.venv\Scripts\python scripts/run_project.py --project legal_task
 ```
 
 `legal_task_report` la reporting:
 
 ```powershell
-.\.venv\Scripts\python scripts/run_project.py --project legal_task_report --input "{}"
+.\.venv\Scripts\python scripts/run_project.py --project legal_task_report
 ```
 
 `er_task`:
 
 ```powershell
-.\.venv\Scripts\python scripts/run_project.py --project er_task --input "{}"
+.\.venv\Scripts\python scripts/run_project.py --project er_task
 ```
 
 ## 6. Chay scheduler
@@ -136,6 +136,6 @@ Sau khi ok, chay:
 ## 8. Luu y
 
 - API hien tai dang dung mock data.
-- `legal_task` khong can truyen `topic` qua `--input`.
+- `--input` la optional. Neu bo qua thi CLI tu dung `{}`.
 - Topic/domain nen duoc define trong runtime config, task prompt, agent prompt, hoac source config.
 - Scheduler dang chay theo project, khong chay theo crew.
