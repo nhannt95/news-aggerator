@@ -2,6 +2,13 @@
 
 Tai lieu nay mo ta `legal_task` theo mo hinh hien tai.
 
+GET /news-sites
+GET /projects/legal_task/runtime-config
+GET /scheduler-configs
+GET /processed-articles
+POST /processed-articles
+POST /reported-articles
+
 `legal_task` chi lam ingest:
 
 1. Lay source tu API
