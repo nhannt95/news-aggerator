@@ -9,16 +9,32 @@ from src.common.utils.datetime_utils import normalize_to_vietnam_time
 class ArticleContentCrawler:
     def __init__(self) -> None:
         self.browser_config = BrowserConfig(headless=True, verbose=False)
-        self.run_config = CrawlerRunConfig(cache_mode=CacheMode.BYPASS)
+
+    def _build_run_config(
+        self,
+        extract_method: str = "fit_markdown",
+        content_selector: str | None = None,
+    ) -> CrawlerRunConfig:
+        if extract_method == "css_selector" and content_selector:
+            return CrawlerRunConfig(
+                cache_mode=CacheMode.BYPASS,
+                css_selector=content_selector,
+            )
+        return CrawlerRunConfig(cache_mode=CacheMode.BYPASS)
 
     @staticmethod
-    def _get_markdown_text(markdown: Any) -> str:
+    def _get_markdown_text(markdown: Any, extract_method: str = "fit_markdown") -> str:
         if markdown is None:
             return ""
         if isinstance(markdown, str):
             return markdown
 
-        for attr in ("fit_markdown", "raw_markdown", "markdown_with_citations"):
+        if extract_method == "fit_markdown":
+            order = ("fit_markdown", "raw_markdown", "markdown_with_citations")
+        else:
+            order = ("raw_markdown", "fit_markdown", "markdown_with_citations")
+
+        for attr in order:
             value = getattr(markdown, attr, None)
             if value:
                 return value
@@ -40,8 +56,11 @@ class ArticleContentCrawler:
         self,
         crawler: AsyncWebCrawler,
         url: str,
+        extract_method: str = "fit_markdown",
+        content_selector: str | None = None,
     ) -> ArticleContent:
-        result = await crawler.arun(url=url, config=self.run_config)
+        run_config = self._build_run_config(extract_method, content_selector)
+        result = await crawler.arun(url=url, config=run_config)
         if not result.success:
             raise RuntimeError(f"Khong crawl duoc bai viet: {result.error_message or url}")
 
@@ -63,17 +82,35 @@ class ArticleContentCrawler:
             description=metadata.get("description")
             or metadata.get("og:description")
             or metadata.get("twitter:description"),
-            content_markdown=self._get_markdown_text(getattr(result, "markdown", None)).strip(),
+            content_markdown=self._get_markdown_text(
+                getattr(result, "markdown", None), extract_method
+            ).strip(),
             metadata=metadata,
         )
 
-    async def crawl(self, url: str) -> ArticleContent:
+    async def crawl(
+        self,
+        url: str,
+        extract_method: str = "fit_markdown",
+        content_selector: str | None = None,
+    ) -> ArticleContent:
         async with AsyncWebCrawler(config=self.browser_config) as crawler:
-            return await self.crawl_article(crawler, url)
+            return await self.crawl_article(
+                crawler, url, extract_method, content_selector
+            )
 
-    async def crawl_many(self, urls: list[str]) -> list[ArticleContent]:
+    async def crawl_many(
+        self,
+        urls: list[str],
+        extract_method: str = "fit_markdown",
+        content_selector: str | None = None,
+    ) -> list[ArticleContent]:
         async with AsyncWebCrawler(config=self.browser_config) as crawler:
             results: list[ArticleContent] = []
             for url in urls:
-                results.append(await self.crawl_article(crawler, url))
+                results.append(
+                    await self.crawl_article(
+                        crawler, url, extract_method, content_selector
+                    )
+                )
             return results

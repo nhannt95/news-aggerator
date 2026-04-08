@@ -200,7 +200,11 @@ class LegalTaskWorkflow:
             return []
 
         article_contents = asyncio.run(
-            self.content_crawler.crawl_many([article.url for article in new_articles])
+            self.content_crawler.crawl_many(
+                [article.url for article in new_articles],
+                extract_method=site.extract_method,
+                content_selector=site.content_selector,
+            )
         )
 
         saved_payload: list[dict[str, Any]] = []
