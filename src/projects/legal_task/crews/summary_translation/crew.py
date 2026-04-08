@@ -7,7 +7,7 @@ def build_crew(project_input: dict) -> object:
     project_config = load_project_runtime_config("legal_task")
     return build_crew_from_runtime(
         project_config,
-        "reporting",
+        "summary_translation",
         project_input,
         output_model_by_task_key=LEGAL_TASK_OUTPUT_MODELS,
     )

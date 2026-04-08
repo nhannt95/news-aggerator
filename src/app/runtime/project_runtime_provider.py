@@ -8,7 +8,7 @@ from src.infrastructure.api_clients.project_runtime_api_client import (
 
 def get_runtime_api_client() -> ProjectRuntimeApiClient:
     return ProjectRuntimeApiClient(
-        base_url=settings.runtime_config_api_base_url or "http://127.0.0.1:8000",
+        base_url=settings.resolved_runtime_config_api_base_url,
         api_key=settings.runtime_config_api_key,
     )
 

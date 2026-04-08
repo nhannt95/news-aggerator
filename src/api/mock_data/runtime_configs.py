@@ -30,6 +30,17 @@ MOCK_RUNTIME_CONFIGS = {
                 "allow_delegation": False,
                 "enabled": True,
             },
+            {
+                "agent_key": "summary_translator",
+                "role": "Legal Summary And Translation Specialist",
+                "goal": "Summarize relevant legal articles and translate the summary into target languages.",
+                "backstory": "Creates concise summaries and multilingual outputs for legal monitoring.",
+                "tools": [],
+                "llm": "llama3.1",
+                "verbose": True,
+                "allow_delegation": False,
+                "enabled": True,
+            },
         ],
         "tasks": [
             {
@@ -50,6 +61,24 @@ MOCK_RUNTIME_CONFIGS = {
                 "output_key": "report_result",
                 "enabled": True,
             },
+            {
+                "task_key": "summarize_article",
+                "description": "Summarize the relevant legal article into a concise, accurate summary.",
+                "expected_output": "A short summary of the legal article.",
+                "agent_key": "summary_translator",
+                "context_task_keys": [],
+                "output_key": "summary_result",
+                "enabled": True,
+            },
+            {
+                "task_key": "translate_summary",
+                "description": "Translate the generated summary into two target languages chosen from Korean, English, and Vietnamese.",
+                "expected_output": "A multilingual translation package for the summary.",
+                "agent_key": "summary_translator",
+                "context_task_keys": ["summarize_article"],
+                "output_key": "translation_result",
+                "enabled": True,
+            },
         ],
         "crews": [
             {
@@ -64,6 +93,13 @@ MOCK_RUNTIME_CONFIGS = {
                 "process": "sequential",
                 "agent_keys": ["reporter"],
                 "task_keys": ["write_report"],
+                "enabled": True,
+            },
+            {
+                "crew_key": "summary_translation",
+                "process": "sequential",
+                "agent_keys": ["summary_translator"],
+                "task_keys": ["summarize_article", "translate_summary"],
                 "enabled": True,
             },
         ],

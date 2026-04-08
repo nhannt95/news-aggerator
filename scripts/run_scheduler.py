@@ -15,8 +15,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run APScheduler against config API.")
     parser.add_argument(
         "--api-base-url",
-        default=settings.scheduler_api_base_url or "http://127.0.0.1:8000",
-        help="Scheduler config API base URL. Defaults to local mock API.",
+        default=settings.resolved_scheduler_api_base_url,
+        help="Scheduler config API base URL. Defaults to value from settings/.env.",
     )
     parser.add_argument(
         "--dry-run",

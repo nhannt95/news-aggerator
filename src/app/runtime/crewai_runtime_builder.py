@@ -64,6 +64,7 @@ def build_tasks_from_config(
     crew_config: CrewRuntimeConfig,
     agents: dict[str, object],
     project_input: dict,
+    output_model_by_task_key: dict[str, Any] | None = None,
 ) -> list[object]:
     _, _, _, _, Task = _require_crewai()
 
@@ -91,6 +92,8 @@ def build_tasks_from_config(
         }
         if context_tasks:
             task_kwargs["context"] = context_tasks
+        if output_model_by_task_key and config.task_key in output_model_by_task_key:
+            task_kwargs["output_json"] = output_model_by_task_key[config.task_key]
 
         task = Task(**task_kwargs)
         built_tasks[task_key] = task
@@ -103,6 +106,7 @@ def build_crew_from_runtime(
     project_config: ProjectRuntimeConfig,
     crew_key: str,
     project_input: dict,
+    output_model_by_task_key: dict[str, Any] | None = None,
 ) -> object:
     _, Crew, _, Process, _ = _require_crewai()
 
@@ -110,7 +114,13 @@ def build_crew_from_runtime(
         item for item in project_config.crews if item.enabled and item.crew_key == crew_key
     )
     agents = build_agents_from_config(project_config, crew_config)
-    tasks = build_tasks_from_config(project_config, crew_config, agents, project_input)
+    tasks = build_tasks_from_config(
+        project_config,
+        crew_config,
+        agents,
+        project_input,
+        output_model_by_task_key=output_model_by_task_key,
+    )
 
     process = Process.sequential
     if crew_config.process == "hierarchical" and hasattr(Process, "hierarchical"):

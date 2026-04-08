@@ -1,0 +1,10 @@
+from src.app.runtime.crewai_runtime_builder import build_tasks_from_config
+from src.app.runtime.project_runtime_provider import load_project_runtime_config
+
+
+def build_tasks(agents: dict[str, object], project_input: dict) -> list[object]:
+    project_config = load_project_runtime_config("legal_task")
+    crew_config = next(
+        item for item in project_config.crews if item.crew_key == "summary_translation"
+    )
+    return build_tasks_from_config(project_config, crew_config, agents, project_input)

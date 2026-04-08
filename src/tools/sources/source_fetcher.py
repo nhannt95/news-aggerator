@@ -6,8 +6,8 @@ class SourceFetcher:
     def __init__(self, client: NewsSourceApiClient) -> None:
         self.client = client
 
-    def fetch_sites(self) -> list[NewsSite]:
-        raw_sites = self.client.get_latest_pages()
+    def fetch_sites(self, project_name: str | None = None) -> list[NewsSite]:
+        raw_sites = self.client.get_latest_pages(project_name=project_name)
         return [
             NewsSite(
                 site_id=str(item.get("id", "")),
@@ -15,6 +15,11 @@ class SourceFetcher:
                 latest_page_url=item.get("latest_page_url", ""),
                 domain=item.get("domain"),
                 category=item.get("category"),
+                language=item.get("language"),
+                last_crawled_at=item.get("last_crawled_at"),
+                project_name=item.get("project_name"),
+                relevance_threshold=item.get("relevance_threshold", 70),
+                target_languages=item.get("target_languages") or ["vi", "en"],
                 active=item.get("active", True),
             )
             for item in raw_sites

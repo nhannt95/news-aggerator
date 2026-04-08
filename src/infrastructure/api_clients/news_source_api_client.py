@@ -9,14 +9,18 @@ class NewsSourceApiClient:
         self.api_key = api_key
         self.timeout = timeout
 
-    def get_latest_pages(self) -> list[dict[str, Any]]:
+    def get_latest_pages(self, project_name: str | None = None) -> list[dict[str, Any]]:
         headers = {}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
+        params = {}
+        if project_name:
+            params["project_name"] = project_name
 
         response = requests.get(
             f"{self.base_url}/news-sites",
             headers=headers,
+            params=params,
             timeout=self.timeout,
         )
         response.raise_for_status()
@@ -24,3 +28,17 @@ class NewsSourceApiClient:
         if isinstance(payload, list):
             return payload
         return payload.get("data", [])
+
+    def save_processed_articles(self, payload: list[dict[str, Any]]) -> dict[str, Any]:
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+
+        response = requests.post(
+            f"{self.base_url}/processed-articles",
+            headers=headers,
+            json={"data": payload},
+            timeout=self.timeout,
+        )
+        response.raise_for_status()
+        return response.json()
