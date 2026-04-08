@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Curator AI - Admin Settings</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-dim": "#8455ef",
+                        "on-tertiary-fixed-variant": "#4600a8",
+                        "on-tertiary-container": "#000000",
+                        "on-tertiary-fixed": "#1f0052",
+                        "tertiary-fixed-dim": "#b091ff",
+                        "error-container": "#9f0519",
+                        "primary-dim": "#699cff",
+                        "on-surface-variant": "#a3aac4",
+                        "surface-container": "#0f1930",
+                        "background": "#060e20",
+                        "on-secondary-container": "#ccccff",
+                        "on-secondary-fixed-variant": "#3a3ac8",
+                        "surface-tint": "#85adff",
+                        "primary-fixed": "#6e9fff",
+                        "error": "#ff716c",
+                        "on-primary-container": "#002150",
+                        "tertiary-fixed": "#bda2ff",
+                        "surface-container-lowest": "#000000",
+                        "primary-fixed-dim": "#5391ff",
+                        "surface-variant": "#192540",
+                        "surface-dim": "#060e20",
+                        "surface-container-high": "#141f38",
+                        "secondary-fixed": "#cdcdff",
+                        "tertiary": "#ac8aff",
+                        "surface": "#060e20",
+                        "error-dim": "#d7383b",
+                        "inverse-on-surface": "#4d556b",
+                        "on-secondary": "#080079",
+                        "surface-container-low": "#091328",
+                        "on-primary-fixed": "#000000",
+                        "outline": "#6d758c",
+                        "secondary": "#9093ff",
+                        "on-error": "#490006",
+                        "on-secondary-fixed": "#160bae",
+                        "on-background": "#dee5ff",
+                        "outline-variant": "#40485d",
+                        "secondary-container": "#2f2ebe",
+                        "surface-bright": "#1f2b49",
+                        "tertiary-container": "#8f60fa",
+                        "on-primary-fixed-variant": "#002a62",
+                        "on-surface": "#dee5ff",
+                        "primary": "#85adff",
+                        "primary-container": "#6e9fff",
+                        "on-primary": "#002c66",
+                        "on-error-container": "#ffa8a3",
+                        "on-tertiary": "#280067",
+                        "inverse-primary": "#005bc4",
+                        "secondary-dim": "#6063ee",
+                        "inverse-surface": "#faf8ff",
+                        "surface-container-highest": "#192540",
+                        "secondary-fixed-dim": "#bdbeff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Manrope"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-card {
+            background: rgba(25, 37, 64, 0.4);
+            backdrop-filter: blur(24px);
+            border-top: 1px solid rgba(172, 138, 255, 0.1);
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body selection:bg-primary-container selection:text-on-primary-container">
+<!-- SideNavBar Shell -->
+<aside class="bg-[#091328] dark:bg-[#091328] h-screen w-64 fixed left-0 top-0 border-r border-[#40485d]/15 flex flex-col py-8 px-4 gap-y-6 z-40 hidden md:flex font-inter text-sm antialiased shadow-2xl shadow-black/50">
+<div class="mb-4">
+<h1 class="text-lg font-bold text-[#dee5ff]">Editorial Intelligence</h1>
+<p class="text-xs text-[#dee5ff]/50 uppercase tracking-widest mt-1">Premium Insights</p>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#dee5ff]/60 hover:text-[#dee5ff] hover:bg-[#1f2b49] transition-all ease-in-out duration-300" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#dee5ff]/60 hover:text-[#dee5ff] hover:bg-[#1f2b49] transition-all ease-in-out duration-300" href="#">
+<span class="material-symbols-outlined" data-icon="account_tree">account_tree</span>
+<span>Departments</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#85adff] bg-[#192540] border-l-4 border-[#85adff] transition-all ease-in-out duration-300" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span>Admin Settings</span>
+</a>
+</nav>
+<div class="mt-auto pt-6 border-t border-[#40485d]/15 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#dee5ff]/60 hover:text-[#dee5ff] hover:bg-[#1f2b49] transition-all ease-in-out duration-300" href="#">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+<span>Help</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#dee5ff]/60 hover:text-[#dee5ff] hover:bg-[#1f2b49] transition-all ease-in-out duration-300" href="#">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+<span>Logout</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="md:ml-64 min-h-screen">
+<!-- TopNavBar Shell -->
+<header class="bg-[#060e20] dark:bg-[#060e20] flex justify-between items-center px-6 h-16 w-full fixed top-0 z-30 font-manrope tracking-tight border-b border-[#40485d]/15 shadow-[0px_24px_48px_rgba(0,0,0,0.4)]">
+<div class="flex items-center gap-8">
+<div class="text-xl font-bold tracking-tighter text-[#dee5ff]">Curator AI</div>
+<div class="relative hidden lg:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#dee5ff]/40 text-sm">search</span>
+<input class="bg-surface-container-low border-none rounded-full pl-10 pr-4 py-1.5 text-sm w-64 focus:ring-1 focus:ring-primary/30 transition-all placeholder:text-[#dee5ff]/30" placeholder="Search projects..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 rounded-full text-[#85adff] hover:bg-[#1f2b49] transition-colors scale-95 duration-200">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="p-2 rounded-full text-[#85adff] hover:bg-[#1f2b49] transition-colors scale-95 duration-200">
+<span class="material-symbols-outlined" data-icon="sparkles">colors_spark</span>
+</button>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-[#40485d]/30">
+<img alt="User avatar" class="w-full h-full object-cover" data-alt="Close up portrait of a professional woman with a confident expression in a clean studio lighting environment" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCLiw2kwxvha8iDagB9caw3UXW7UmG5FrnysfkRqYwwvZOb-P4V0mUrFwZoUqkPAGmx-urfKJ9hdbHhlPH_zsXy5FTalvH7nlMMJGC5lQE4i9qklkgSKfADfcksjbHgDpaqcKsb9PIAk5NY4JXZdU8Efr1J0tU0QiThiONyWZXQ0FoVFEjHZ_OmdxZasLLFwkFPaH3PLG4n60SkYDCKqsTnNLfFxx-Lj41EYAgF9Tk8CnPH8Km7Zrsj3kw-4ivYu6dzDWD9UXGHxng"/>
+</div>
+</div>
+</header>
+<!-- Content Canvas -->
+<div class="pt-24 pb-12 px-6 md:px-10 max-w-7xl mx-auto">
+<!-- Page Header Actions -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
+<div>
+<h2 class="text-4xl font-extrabold font-headline tracking-tighter text-on-surface mb-2">Project Orchestration</h2>
+<p class="text-on-surface-variant max-w-2xl font-body">Manage AI-driven tracking parameters across editorial departments. Configure source velocity and keyword weights.</p>
+</div>
+<button class="flex items-center gap-2 px-6 py-3 bg-gradient-to-br from-primary to-primary-container text-on-primary font-bold rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all active:scale-95 group">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+<span>Add Project</span>
+</button>
+</div>
+<!-- Dashboard Stats (Editorial Intelligence Style) -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-12">
+<div class="bg-surface-container-low p-5 rounded-xl border-l-4 border-primary">
+<p class="text-xs font-bold text-primary tracking-widest uppercase mb-1">Active Projects</p>
+<p class="text-2xl font-headline font-extrabold">42</p>
+</div>
+<div class="bg-surface-container-low p-5 rounded-xl border-l-4 border-tertiary">
+<p class="text-xs font-bold text-tertiary tracking-widest uppercase mb-1">Weekly Volume</p>
+<p class="text-2xl font-headline font-extrabold">1.2M <span class="text-xs font-normal text-on-surface-variant">Sources</span></p>
+</div>
+<div class="bg-surface-container-low p-5 rounded-xl border-l-4 border-secondary">
+<p class="text-xs font-bold text-secondary tracking-widest uppercase mb-1">Avg Frequency</p>
+<p class="text-2xl font-headline font-extrabold">15 <span class="text-xs font-normal text-on-surface-variant">min</span></p>
+</div>
+<div class="bg-surface-container-low p-5 rounded-xl border-l-4 border-error">
+<p class="text-xs font-bold text-error tracking-widest uppercase mb-1">Paused Streams</p>
+<p class="text-2xl font-headline font-extrabold">03</p>
+</div>
+</div>
+<!-- Project Management Interface -->
+<div class="space-y-4">
+<!-- Table Header -->
+<div class="hidden md:grid grid-cols-12 gap-4 px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-widest">
+<div class="col-span-3">Project &amp; Department</div>
+<div class="col-span-2">Keywords</div>
+<div class="col-span-3">Source Infrastructure</div>
+<div class="col-span-2">Frequency</div>
+<div class="col-span-2 text-right">Operations</div>
+</div>
+<!-- Project Item 1 -->
+<div class="glass-card bg-surface-container-highest p-6 rounded-xl group transition-all hover:translate-y-[-2px] hover:shadow-2xl hover:shadow-black/60">
+<div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+<div class="col-span-3 flex items-center gap-4">
+<div class="w-12 h-12 rounded-lg bg-surface-container-low flex items-center justify-center text-primary-dim">
+<span class="material-symbols-outlined text-3xl" data-icon="rocket_launch">rocket_launch</span>
+</div>
+<div>
+<h3 class="font-bold text-on-surface text-lg leading-tight">Global FinTech Pulse</h3>
+<p class="text-xs text-on-surface-variant mt-1 uppercase tracking-tighter">Finance Department</p>
+</div>
+</div>
+<div class="col-span-2">
+<div class="flex flex-wrap gap-1.5">
+<span class="px-2 py-0.5 rounded-full bg-surface-container-low text-[10px] border border-outline-variant/30 text-on-surface">Blockchain</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container-low text-[10px] border border-outline-variant/30 text-on-surface">IPO</span>
+</div>
+</div>
+<div class="col-span-3">
+<p class="text-sm font-mono text-primary-dim/80 truncate">bloomberg.com/feeds, reuters.com/tech...</p>
+<p class="text-[10px] text-on-surface-variant mt-1">12 Total API Endpoints</p>
+</div>
+<div class="col-span-2">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_#85adff]"></span>
+<span class="text-sm font-medium">Real-time (5m)</span>
+</div>
+</div>
+<div class="col-span-2 flex justify-end gap-2">
+<button class="p-2.5 rounded-lg bg-surface-bright text-on-surface-variant hover:text-primary transition-colors" title="Edit">
+<span class="material-symbols-outlined text-sm" data-icon="edit">edit</span>
+</button>
+<button class="p-2.5 rounded-lg bg-surface-bright text-on-surface-variant hover:text-secondary transition-colors" title="Pause">
+<span class="material-symbols-outlined text-sm" data-icon="pause">pause</span>
+</button>
+<button class="p-2.5 rounded-lg bg-surface-bright text-on-surface-variant hover:text-error transition-colors" title="Delete">
+<span class="material-symbols-outlined text-sm" data-icon="delete">delete</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Project Item 2 -->
+<div class="glass-card bg-surface-container-highest p-6 rounded-xl group transition-all hover:translate-y-[-2px] hover:shadow-2xl hover:shadow-black/60">
+<div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+<div class="col-span-3 flex items-center gap-4">
+<div class="w-12 h-12 rounded-lg bg-surface-container-low flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined text-3xl" data-icon="eco">eco</span>
+</div>
+<div>
+<h3 class="font-bold text-on-surface text-lg leading-tight">ESG Sentiment Index</h3>
+<p class="text-xs text-on-surface-variant mt-1 uppercase tracking-tighter">Sustainability</p>
+</div>
+</div>
+<div class="col-span-2">
+<div class="flex flex-wrap gap-1.5">
+<span class="px-2 py-0.5 rounded-full bg-surface-container-low text-[10px] border border-outline-variant/30 text-on-surface">Carbon</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container-low text-[10px] border border-outline-variant/30 text-on-surface">Climate</span>
+</div>
+</div>
+<div class="col-span-3">
+<p class="text-sm font-mono text-primary-dim/80 truncate">un.org/climate, greenpeace.org/news</p>
+<p class="text-[10px] text-on-surface-variant mt-1">4 Semantic Scrapers</p>
+</div>
+<div class="col-span-2">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-on-surface-variant"></span>
+<span class="text-sm font-medium text-on-surface-variant">Hourly (60m)</span>
+</div>
+</div>
+<div class="col-span-2 flex justify-end gap-2">
+<button class="p-2.5 rounded-lg bg-surface-bright text-on-surface-variant hover:text-primary transition-colors" title="Edit">
+<span class="material-symbols-outlined text-sm" data-icon="edit">edit</span>
+</button>
+<button class="p-2.5 rounded-lg bg-surface-bright text-primary transition-colors" title="Resume">
+<span class="material-symbols-outlined text-sm" data-icon="play_arrow">play_arrow</span>
+</button>
+<button class="p-2.5 rounded-lg bg-surface-bright text-on-surface-variant hover:text-error transition-colors" title="Delete">
+<span class="material-symbols-outlined text-sm" data-icon="delete">delete</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Project Item 3 -->
+<div class="glass-card bg-surface-container-highest p-6 rounded-xl group transition-all hover:translate-y-[-2px] hover:shadow-2xl hover:shadow-black/60">
+<div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+<div class="col-span-3 flex items-center gap-4">
+<div class="w-12 h-12 rounded-lg bg-surface-container-low flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-3xl" data-icon="biotech">biotech</span>
+</div>
+<div>
+<h3 class="font-bold text-on-surface text-lg leading-tight">MedTech Breakthroughs</h3>
+<p class="text-xs text-on-surface-variant mt-1 uppercase tracking-tighter">Health &amp; Science</p>
+</div>
+</div>
+<div class="col-span-2">
+<div class="flex flex-wrap gap-1.5">
+<span class="px-2 py-0.5 rounded-full bg-surface-container-low text-[10px] border border-outline-variant/30 text-on-surface">Genomics</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container-low text-[10px] border border-outline-variant/30 text-on-surface">CRISPR</span>
+</div>
+</div>
+<div class="col-span-3">
+<p class="text-sm font-mono text-primary-dim/80 truncate">nature.com, pubmed.ncbi.nlm.nih.gov</p>
+<p class="text-[10px] text-on-surface-variant mt-1">22 Scientific Journals</p>
+</div>
+<div class="col-div-2">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_#85adff]"></span>
+<span class="text-sm font-medium">Daily (24h)</span>
+</div>
+</div>
+<div class="col-span-2 flex justify-end gap-2">
+<button class="p-2.5 rounded-lg bg-surface-bright text-on-surface-variant hover:text-primary transition-colors" title="Edit">
+<span class="material-symbols-outlined text-sm" data-icon="edit">edit</span>
+</button>
+<button class="p-2.5 rounded-lg bg-surface-bright text-on-surface-variant hover:text-secondary transition-colors" title="Pause">
+<span class="material-symbols-outlined text-sm" data-icon="pause">pause</span>
+</button>
+<button class="p-2.5 rounded-lg bg-surface-bright text-on-surface-variant hover:text-error transition-colors" title="Delete">
+<span class="material-symbols-outlined text-sm" data-icon="delete">delete</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Project Item 4 -->
+<div class="glass-card bg-surface-container-highest p-6 rounded-xl group transition-all hover:translate-y-[-2px] hover:shadow-2xl hover:shadow-black/60">
+<div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+<div class="col-span-3 flex items-center gap-4">
+<div class="w-12 h-12 rounded-lg bg-surface-container-low flex items-center justify-center text-tertiary-fixed-dim">
+<span class="material-symbols-outlined text-3xl" data-icon="theater_comedy">theater_comedy</span>
+</div>
+<div>
+<h3 class="font-bold text-on-surface text-lg leading-tight">Pop Culture Viral</h3>
+<p class="text-xs text-on-surface-variant mt-1 uppercase tracking-tighter">Entertainment</p>
+</div>
+</div>
+<div class="col-span-2">
+<div class="flex flex-wrap gap-1.5">
+<span class="px-2 py-0.5 rounded-full bg-surface-container-low text-[10px] border border-outline-variant/30 text-on-surface">Trending</span>
+<span class="px-2 py-0.5 rounded-full bg-surface-container-low text-[10px] border border-outline-variant/30 text-on-surface">Streaming</span>
+</div>
+</div>
+<div class="col-span-3">
+<p class="text-sm font-mono text-primary-dim/80 truncate">twitter.com, tiktok.com, variety.com</p>
+<p class="text-[10px] text-on-surface-variant mt-1">Social Velocity API</p>
+</div>
+<div class="col-span-2">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_#85adff]"></span>
+<span class="text-sm font-medium">Real-time (1m)</span>
+</div>
+</div>
+<div class="col-span-2 flex justify-end gap-2">
+<button class="p-2.5 rounded-lg bg-surface-bright text-on-surface-variant hover:text-primary transition-colors" title="Edit">
+<span class="material-symbols-outlined text-sm" data-icon="edit">edit</span>
+</button>
+<button class="p-2.5 rounded-lg bg-surface-bright text-on-surface-variant hover:text-secondary transition-colors" title="Pause">
+<span class="material-symbols-outlined text-sm" data-icon="pause">pause</span>
+</button>
+<button class="p-2.5 rounded-lg bg-surface-bright text-on-surface-variant hover:text-error transition-colors" title="Delete">
+<span class="material-symbols-outlined text-sm" data-icon="delete">delete</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Form-Style Add/Edit Context Preview (Digital Curator Style) -->
+<div class="mt-20 border-t border-outline-variant/15 pt-12">
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
+<div class="lg:col-span-1">
+<h4 class="text-2xl font-extrabold font-headline tracking-tight text-on-surface mb-4">Draft New Protocol</h4>
+<p class="text-on-surface-variant text-sm leading-relaxed mb-6">Initialize a new editorial monitoring stream. Ensure keywords are specific to avoid intelligence drift. Our AI will automatically suggest auxiliary sources based on your primary URLs.</p>
+<div class="aspect-video rounded-xl bg-surface-container relative overflow-hidden group">
+<img class="w-full h-full object-cover opacity-40 group-hover:scale-110 transition-transform duration-700" data-alt="Futuristic glowing 3D data visualization dashboard with blue and purple neon light streaks on a dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC6UYe86i88vhlSVroFXOq8iH7xC1E961Bqf_7xLM6p1WQLJjqvlrHQBTrCZJsg2U0du5QEjg5xCFtJXJ0_CBTyXIOOFwG-Nf1zJUiSY2QZuhhaKzBi4JD5XmxtadyzcaPEt8HCME4i8m2Ldew7nz3KEyEYj6jHyAGzn98hZCbohzJ11VNyZDK_ioHM4w3by4Kn25Y5RZ6Jmh20MFTcNlMQW_v9lbepRfF-Zjm4-yFBzhnks369W7TrFmVm2VW4jc0EpqIWZpoWH0w"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"></div>
+<div class="absolute bottom-4 left-4">
+<span class="text-[10px] font-bold uppercase tracking-widest text-primary">System Health: Optimal</span>
+</div>
+</div>
+</div>
+<div class="lg:col-span-2 bg-surface-container-low p-8 rounded-2xl">
+<form class="space-y-6">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="space-y-2">
+<label class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant px-1">Project Identifier</label>
+<input class="w-full bg-surface-container-highest border-outline-variant/20 border rounded-lg px-4 py-3 text-on-surface focus:ring-1 focus:ring-primary/50 focus:border-primary/50 outline-none transition-all placeholder:text-on-surface-variant/30" placeholder="e.g. Quantum Computing Monitor" type="text"/>
+</div>
+<div class="space-y-2">
+<label class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant px-1">Target Department</label>
+<select class="w-full bg-surface-container-highest border-outline-variant/20 border rounded-lg px-4 py-3 text-on-surface focus:ring-1 focus:ring-primary/50 focus:border-primary/50 outline-none transition-all appearance-none">
+<option>Technology &amp; Innovation</option>
+<option>Global Markets</option>
+<option>Healthcare Systems</option>
+<option>Political Intelligence</option>
+</select>
+</div>
+</div>
+<div class="space-y-2">
+<label class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant px-1">Intelligence Keywords (Comma Separated)</label>
+<textarea class="w-full bg-surface-container-highest border-outline-variant/20 border rounded-lg px-4 py-3 text-on-surface focus:ring-1 focus:ring-primary/50 focus:border-primary/50 outline-none transition-all placeholder:text-on-surface-variant/30" placeholder="AI ethics, regulation, compute power, Nvidia, GPU scarcity..." rows="2"></textarea>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="space-y-2">
+<label class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant px-1">Monitoring Cadence</label>
+<div class="flex gap-2">
+<button class="flex-1 py-3 px-2 rounded-lg bg-surface-bright text-xs font-bold border border-primary/40 text-primary" type="button">Real-time</button>
+<button class="flex-1 py-3 px-2 rounded-lg bg-surface-container-highest text-xs font-medium border border-outline-variant/20 text-on-surface-variant" type="button">Standard</button>
+<button class="flex-1 py-3 px-2 rounded-lg bg-surface-container-highest text-xs font-medium border border-outline-variant/20 text-on-surface-variant" type="button">Archival</button>
+</div>
+</div>
+<div class="space-y-2">
+<label class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant px-1">Source URL Cluster</label>
+<input class="w-full bg-surface-container-highest border-outline-variant/20 border rounded-lg px-4 py-3 text-on-surface focus:ring-1 focus:ring-primary/50 focus:border-primary/50 outline-none transition-all placeholder:text-on-surface-variant/30" placeholder="https://news.ycombinator.com/rss" type="url"/>
+</div>
+</div>
+<div class="pt-4 flex justify-end gap-4">
+<button class="px-6 py-3 rounded-lg text-on-surface-variant font-medium hover:text-on-surface transition-colors" type="button">Discard</button>
+<button class="px-10 py-3 rounded-lg bg-primary text-on-primary font-bold hover:bg-primary-container transition-all shadow-xl shadow-primary/10" type="submit">Authorize Stream</button>
+</div>
+</form>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar for Mobile Shell Visibility & Relevance Check -->
+<nav class="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-surface-container border-t border-outline-variant/10 flex items-center justify-around px-4 z-50">
+<a class="flex flex-col items-center gap-1 text-[#dee5ff]/60" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="text-[10px]">Dashboard</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-[#dee5ff]/60" href="#">
+<span class="material-symbols-outlined" data-icon="account_tree">account_tree</span>
+<span class="text-[10px]">Departments</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-[#85adff]" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="text-[10px] font-bold">Admin</span>
+</a>
+</nav>
+</body></html>

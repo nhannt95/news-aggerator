@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Curator AI - Article Intelligence</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-dim": "#8455ef",
+                    "on-tertiary-fixed-variant": "#4600a8",
+                    "on-tertiary-container": "#000000",
+                    "on-tertiary-fixed": "#1f0052",
+                    "tertiary-fixed-dim": "#b091ff",
+                    "error-container": "#9f0519",
+                    "primary-dim": "#699cff",
+                    "on-surface-variant": "#a3aac4",
+                    "surface-container": "#0f1930",
+                    "background": "#060e20",
+                    "on-secondary-container": "#ccccff",
+                    "on-secondary-fixed-variant": "#3a3ac8",
+                    "surface-tint": "#85adff",
+                    "primary-fixed": "#6e9fff",
+                    "error": "#ff716c",
+                    "on-primary-container": "#002150",
+                    "tertiary-fixed": "#bda2ff",
+                    "surface-container-lowest": "#000000",
+                    "primary-fixed-dim": "#5391ff",
+                    "surface-variant": "#192540",
+                    "surface-dim": "#060e20",
+                    "surface-container-high": "#141f38",
+                    "secondary-fixed": "#cdcdff",
+                    "tertiary": "#ac8aff",
+                    "surface": "#060e20",
+                    "error-dim": "#d7383b",
+                    "inverse-on-surface": "#4d556b",
+                    "on-secondary": "#080079",
+                    "surface-container-low": "#091328",
+                    "on-primary-fixed": "#000000",
+                    "outline": "#6d758c",
+                    "secondary": "#9093ff",
+                    "on-error": "#490006",
+                    "on-secondary-fixed": "#160bae",
+                    "on-background": "#dee5ff",
+                    "outline-variant": "#40485d",
+                    "secondary-container": "#2f2ebe",
+                    "surface-bright": "#1f2b49",
+                    "tertiary-container": "#8f60fa",
+                    "on-primary-fixed-variant": "#002a62",
+                    "on-surface": "#dee5ff",
+                    "primary": "#85adff",
+                    "primary-container": "#6e9fff",
+                    "on-primary": "#002c66",
+                    "on-error-container": "#ffa8a3",
+                    "on-tertiary": "#280067",
+                    "inverse-primary": "#005bc4",
+                    "secondary-dim": "#6063ee",
+                    "inverse-surface": "#faf8ff",
+                    "surface-container-highest": "#192540",
+                    "secondary-fixed-dim": "#bdbeff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Manrope"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-overlay {
+            background: rgba(9, 19, 40, 0.8);
+            backdrop-filter: blur(12px);
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .ai-glow {
+            box-shadow: 0 0 20px rgba(172, 138, 255, 0.15);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-primary/30">
+<!-- Header (Shared Component) -->
+<nav class="flex justify-between items-center px-6 h-16 w-full fixed top-0 z-50 bg-[#060e20] dark:bg-[#060e20] font-manrope tracking-tight w-full border-b border-[#40485d]/15 shadow-[0px_24px_48px_rgba(0,0,0,0.4)]">
+<div class="flex items-center gap-6">
+<span class="text-xl font-bold tracking-tighter text-[#dee5ff]">Curator AI</span>
+<div class="hidden md:flex items-center gap-4 bg-surface-container-low px-4 py-1.5 rounded-full border border-outline-variant/15">
+<span class="material-symbols-outlined text-primary/70 text-sm">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm w-64 placeholder-on-surface-variant/50" placeholder="Search insights..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-[#dee5ff]/70 hover:bg-[#1f2b49] transition-colors rounded-full">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 text-[#85adff] font-bold hover:bg-[#1f2b49] transition-colors rounded-full">
+<span class="material-symbols-outlined">colors_spark</span>
+</button>
+<div class="h-8 w-8 rounded-full overflow-hidden border border-primary/20">
+<img alt="User avatar" data-alt="Professional headshot of a creative director in soft studio lighting with a neutral gray background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBMLbXCaDqoxoO1Cwqz8vuUlnB99NRrQVMRriH4JSUl-mvBVsR8oj81x7pgDtos8ecv96eOaKqJM-m86bzRaSHms4h782ModzJ9BnlJ_3X2ZqxG6y3dV0MbmXxk7SoxMgfLBIQGXk9czTQi5QOjvtCB70fst0u5_dN1LGHe15sJozcBlLSqBJKnLBC0FJi9LWrJTnjnsTl-zgTbJn6hGIDrK0tdPN-2qk4MH9k70Um3rFqYJyXUKrvn3uepldPArTio0HeiSApmELE"/>
+</div>
+</div>
+</nav>
+<!-- Background News List (Mockup behind overlay) -->
+<main class="pt-24 px-6 max-w-7xl mx-auto opacity-20 pointer-events-none">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<div class="col-span-2 space-y-8">
+<div class="h-48 bg-surface-container-highest rounded-xl"></div>
+<div class="h-96 bg-surface-container-highest rounded-xl"></div>
+</div>
+<div class="space-y-8">
+<div class="h-64 bg-surface-container-low rounded-xl"></div>
+<div class="h-64 bg-surface-container-low rounded-xl"></div>
+</div>
+</div>
+</main>
+<!-- Modal Overlay -->
+<div class="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8 glass-overlay">
+<!-- Article Modal -->
+<div class="bg-surface-container-low w-full max-w-6xl h-full max-h-[921px] rounded-xl flex flex-col overflow-hidden shadow-2xl border border-outline-variant/10">
+<!-- Modal Header / Language Tabs -->
+<div class="flex items-center justify-between px-6 py-4 border-b border-outline-variant/15 bg-surface-container-high/50">
+<div class="flex items-center gap-1">
+<button class="px-5 py-2 text-sm font-semibold tracking-wide text-primary bg-surface-bright rounded-full transition-all">English</button>
+<button class="px-5 py-2 text-sm font-medium tracking-wide text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 rounded-full transition-all">Vietnam</button>
+<button class="px-5 py-2 text-sm font-medium tracking-wide text-on-surface-variant hover:text-on-surface hover:bg-surface-variant/50 rounded-full transition-all">Korea</button>
+</div>
+<button class="p-2 hover:bg-error/10 hover:text-error text-on-surface-variant transition-colors rounded-full">
+<span class="material-symbols-outlined" style="font-variation-settings: 'wght' 600;">close</span>
+</button>
+</div>
+<!-- Content Area (Scrollable) -->
+<div class="flex-1 overflow-y-auto no-scrollbar grid grid-cols-1 lg:grid-cols-12 gap-0">
+<!-- Main Content (8 cols) -->
+<article class="lg:col-span-8 p-8 md:p-12 border-r border-outline-variant/10">
+<div class="mb-8">
+<div class="flex items-center gap-3 mb-4">
+<span class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest bg-secondary-container text-on-secondary-container rounded">Market Analysis</span>
+<span class="text-on-surface-variant/60 text-xs font-medium">Oct 24, 2024 • 8 min read</span>
+</div>
+<h1 class="text-4xl md:text-5xl font-headline font-extrabold text-on-surface leading-[1.1] tracking-tight mb-8">
+                            The Quantum Leap in Semi-conductor Logistics Infrastructure
+                        </h1>
+<div class="w-full h-80 rounded-xl overflow-hidden mb-8 relative">
+<img alt="Tech feature image" class="w-full h-full object-cover" data-alt="Futuristic glowing microchip circuit board at night with neon blue and purple light paths and soft bokeh" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA2Khr7my8L4P27KD0TJulHkKuPmDeJicI5gpbNwE_40yzchkAwKDCVWspNKhVVxFxO-_DCCQawHx_kYrFesL4c3X51OkykG6zTShHWbjNwhcFFxvjtbneNHYlGGvPSGtIeXtJTZENOzi2NX_S1AWaztjoNOoT7Vtdlw68PCGvKThN_kEYgx38XxCfoZWD3wMh-JfcOxAlob2IYOKnSd9nBCBuNrk3fLZd8965fmlhsYwPCzqHCAPi58ksYGrQxLOHHtprHkXN9lzQ"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-low/80 to-transparent"></div>
+</div>
+</div>
+<div class="space-y-6 text-on-surface/90 leading-relaxed text-lg font-light">
+<p>In the rapidly evolving landscape of global technology, the physical movement of high-precision components has become a primary bottleneck. Recent advancements in AI-driven logistical forecasting are beginning to alleviate the traditional friction points that have plagued the industry for decades.</p>
+<p>The integration of autonomous maritime vessels and predictive supply chain management systems represents more than just an incremental improvement; it is a fundamental shift in how value is distributed across the global north and south. Key manufacturers are now prioritizing resilient local hubs over centralized distribution nodes.</p>
+<blockquote class="border-l-4 border-tertiary-dim pl-6 py-2 my-10 italic text-2xl font-headline text-on-surface">
+                            "The next decade won't be defined by who can build the fastest processor, but by who can deliver it most reliably to a destabilized market."
+                        </blockquote>
+<p>Furthermore, the environmental impact of these logistical chains is undergoing intense scrutiny. New carbon-capture initiatives within shipping lanes are being tested as integrated features of the infrastructure itself, rather than regulatory afterthoughts.</p>
+</div>
+</article>
+<!-- AI Sidebar (4 cols) -->
+<aside class="lg:col-span-4 bg-surface-container/30 p-8 space-y-8">
+<!-- AI Summary Section -->
+<section class="p-6 bg-surface-container-highest rounded-xl border-t-2 border-tertiary ai-glow">
+<div class="flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-tertiary" style="font-variation-settings: 'FILL' 1;">colors_spark</span>
+<h3 class="text-sm font-bold uppercase tracking-widest text-on-surface">AI Summary</h3>
+</div>
+<p class="text-on-surface/80 text-sm leading-relaxed">
+                            Global semiconductor logistics are shifting from centralized nodes to resilient local hubs. Key drivers include predictive AI forecasting and autonomous transit, with a new focus on delivery reliability over raw technical specs.
+                        </p>
+</section>
+<!-- AI Analysis Tabs / High Tech Elements -->
+<section class="space-y-6">
+<div class="flex items-center justify-between">
+<h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Intelligence Analysis</h3>
+<div class="h-1 w-24 bg-outline-variant/20 rounded-full overflow-hidden">
+<div class="h-full w-2/3 bg-tertiary rounded-full"></div>
+</div>
+</div>
+<!-- Sentiment Analysis -->
+<div class="p-5 bg-surface-container-high rounded-xl border border-outline-variant/10">
+<div class="flex justify-between items-center mb-4">
+<span class="text-xs font-medium text-on-surface-variant">Sentiment Profile</span>
+<span class="text-xs font-bold text-primary">Bullish</span>
+</div>
+<div class="flex items-end gap-1.5 h-12">
+<div class="w-full bg-primary/20 h-4 rounded-sm"></div>
+<div class="w-full bg-primary/40 h-6 rounded-sm"></div>
+<div class="w-full bg-primary/60 h-10 rounded-sm"></div>
+<div class="w-full bg-primary/80 h-12 rounded-sm"></div>
+<div class="w-full bg-primary/40 h-7 rounded-sm"></div>
+<div class="w-full bg-primary/20 h-3 rounded-sm"></div>
+</div>
+</div>
+<!-- Key Takeaways (Asymmetric High Tech List) -->
+<div class="space-y-3">
+<div class="flex gap-4 group">
+<div class="flex flex-col items-center">
+<div class="w-2 h-2 rounded-full bg-tertiary shadow-[0_0_8px_#ac8aff]"></div>
+<div class="w-[1px] h-full bg-outline-variant/30 mt-2"></div>
+</div>
+<div class="pb-6">
+<h4 class="text-sm font-bold text-on-surface mb-1 group-hover:text-tertiary transition-colors">Infrastructure Decentralization</h4>
+<p class="text-xs text-on-surface-variant leading-normal">Moving away from single-point failure nodes in South East Asia.</p>
+</div>
+</div>
+<div class="flex gap-4 group">
+<div class="flex flex-col items-center">
+<div class="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_#85adff]"></div>
+<div class="w-[1px] h-full bg-outline-variant/30 mt-2"></div>
+</div>
+<div class="pb-6">
+<h4 class="text-sm font-bold text-on-surface mb-1 group-hover:text-primary transition-colors">Carbon-Capture Logistics</h4>
+<p class="text-xs text-on-surface-variant leading-normal">Integration of environmental tech directly into shipping corridors.</p>
+</div>
+</div>
+<div class="flex gap-4 group">
+<div class="flex flex-col items-center">
+<div class="w-2 h-2 rounded-full bg-secondary shadow-[0_0_8px_#9093ff]"></div>
+</div>
+<div>
+<h4 class="text-sm font-bold text-on-surface mb-1 group-hover:text-secondary transition-colors">Reliability vs. Speed</h4>
+<p class="text-xs text-on-surface-variant leading-normal">Predictive maintenance reducing logistics downtime by 40%.</p>
+</div>
+</div>
+</div>
+<!-- Data Visual Tagging -->
+<div class="pt-4 grid grid-cols-2 gap-3">
+<div class="bg-surface-container-highest p-3 rounded-lg border-l-2 border-primary">
+<div class="text-[10px] text-on-surface-variant uppercase font-bold mb-1">Impact Score</div>
+<div class="text-xl font-headline font-bold text-primary">8.4<span class="text-xs text-on-surface-variant font-normal">/10</span></div>
+</div>
+<div class="bg-surface-container-highest p-3 rounded-lg border-l-2 border-tertiary">
+<div class="text-[10px] text-on-surface-variant uppercase font-bold mb-1">AI Confidence</div>
+<div class="text-xl font-headline font-bold text-tertiary">96<span class="text-xs text-on-surface-variant font-normal">%</span></div>
+</div>
+</div>
+</section>
+</aside>
+</div>
+<!-- Footer Actions -->
+<div class="px-8 py-4 bg-surface-container-high/30 border-t border-outline-variant/10 flex items-center justify-between">
+<div class="flex items-center gap-4">
+<button class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-on-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-base">bookmark</span>
+                        Save for later
+                    </button>
+<button class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-on-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-base">share</span>
+                        Share Insight
+                    </button>
+</div>
+<button class="bg-gradient-to-r from-primary to-primary-container px-6 py-2.5 rounded-full text-on-primary font-bold text-sm hover:opacity-90 transition-opacity">
+                    View Full Technical Report
+                </button>
+</div>
+</div>
+</div>
+</body></html>
