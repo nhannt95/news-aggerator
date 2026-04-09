@@ -24,8 +24,7 @@ CREATE TABLE news_sites (
     relevance_threshold INT     NOT NULL DEFAULT 70,
     target_languages JSON       NULL COMMENT 'e.g. ["vi","en","ko"]',
     active        TINYINT(1)    NOT NULL DEFAULT 1,
-    extract_method VARCHAR(20)  NOT NULL DEFAULT 'fit_markdown' COMMENT 'fit_markdown | css_selector',
-    content_selector VARCHAR(255) NULL COMMENT 'CSS selector for content extraction, used when extract_method = css_selector',
+    content_selector VARCHAR(255) NULL COMMENT 'CSS selector to extract article content',
     created_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
@@ -55,9 +54,11 @@ CREATE TABLE processed_articles (
     classification_result   TEXT          NULL COMMENT 'Raw result string from CrewAI',
     classification_structured JSON        NULL COMMENT '{"is_relevant","relevance_score","matched_topics","reason","recommendation"}',
 
-    -- Summary & Translation (only for relevant articles)
+    -- Summary, Analysis & Translation (only for relevant articles)
     summary                 TEXT          NULL,
-    translations            JSON          NULL COMMENT '{"en":"...","ko":"..."}',
+    analysis                TEXT          NULL,
+    recommendation          TEXT          NULL,
+    translations            JSON          NULL COMMENT '{"en":{"summary","content","analysis","recommendation"},"ko":{...}}',
     summary_translation_result TEXT       NULL COMMENT 'Raw result string from CrewAI',
 
     -- Report
@@ -220,8 +221,8 @@ CREATE TABLE service_control_logs (
 -- ============================================================
 INSERT INTO news_sites (site_id, name, latest_page_url, domain, category, language, last_crawled_at, project_name, relevance_threshold, target_languages, active)
 VALUES
-    ('tn-legal-1', 'Bao Thanh Nien', 'https://thanhnien.vn/tin-moi.htm', 'thanhnien.vn', 'legal', 'vi', '2026-04-07 00:00:00', 'legal_task', 70, '["vi","en","ko"]', 1, 'css_selector', 'div.detail-content'),
-    ('dt-legal-1', 'Bao Dan tri', 'https://dantri.com.vn/tin-moi-nhat.htm', 'dantri.com.vn', 'legal', 'vi', '2026-04-07 00:00:00', 'legal_task', 70, '["vi","en","ko"]', 1, 'css_selector', 'div.singular-content');
+    ('tn-legal-1', 'Bao Thanh Nien', 'https://thanhnien.vn/tin-moi.htm', 'thanhnien.vn', 'legal', 'vi', '2026-04-07 00:00:00', 'legal_task', 70, '["vi","en","ko"]', 1, 'div.detail-cmain'),
+    ('dt-legal-1', 'Bao Dan tri', 'https://dantri.com.vn/tin-moi-nhat.htm', 'dantri.com.vn', 'legal', 'vi', '2026-04-07 00:00:00', 'legal_task', 70, '["vi","en","ko"]', 1, 'div.singular-content');
 
 -- ============================================================
 -- Sample data - Scheduler Configs

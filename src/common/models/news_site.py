@@ -14,5 +14,4 @@ class NewsSite:
     relevance_threshold: int = 70
     target_languages: list[str] | None = None
     active: bool = True
-    extract_method: str = "fit_markdown"
     content_selector: str | None = None

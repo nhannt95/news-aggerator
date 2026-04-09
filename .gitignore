@@ -11,6 +11,7 @@ env/
 # Build and packaging
 build/
 dist/
+storage/
 *.egg-info/
 .pytest_cache/
 .mypy_cache/

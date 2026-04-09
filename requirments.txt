@@ -1,6 +1,7 @@
 crawl4ai==0.8.6
 crewai==1.13.0
 requests
+httpx
 apscheduler
 fastapi
 uvicorn[standard]

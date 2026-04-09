@@ -11,8 +11,8 @@ MOCK_NEWS_SITES = [
         "relevance_threshold": 70,
         "target_languages": ["vi", "en", "ko"],
         "active": True,
-        "extract_method": "css_selector",
-        "content_selector": "div.detail-content",
+
+        "content_selector": "div.detail-cmain",
     },
     {
         "id": "dt-legal-1",
@@ -26,7 +26,7 @@ MOCK_NEWS_SITES = [
         "relevance_threshold": 70,
         "target_languages": ["vi", "en", "ko"],
         "active": True,
-        "extract_method": "css_selector",
+
         "content_selector": "div.singular-content",
     },
 ]

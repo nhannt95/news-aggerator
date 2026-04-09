@@ -9,10 +9,21 @@ MOCK_RUNTIME_CONFIGS = {
         },
         "agents": [
             {
+                "agent_key": "title_screener",
+                "role": "Legal News Title Screener",
+                "goal": "Quickly screen article titles to identify potentially relevant legal news.",
+                "backstory": "Pre-filters articles by title before expensive content analysis. Looks for legal keywords, policy changes, regulations, court decisions, and compliance topics.",
+                "tools": [],
+                "llm": "llama3.2:1b",
+                "verbose": True,
+                "allow_delegation": False,
+                "enabled": True,
+            },
+            {
                 "agent_key": "classifier",
                 "role": "Legal News Classifier",
-                "goal": "Classify legal articles by relevance, topic, and urgency.",
-                "backstory": "Triages legal news for downstream processing.",
+                "goal": "Classify legal articles by relevance, topic, and urgency based on full content.",
+                "backstory": "Performs deep classification on pre-screened articles using full content analysis.",
                 "tools": ["latest_news_link_crawler"],
                 "llm": "llama3.2:1b",
                 "verbose": True,
@@ -32,9 +43,9 @@ MOCK_RUNTIME_CONFIGS = {
             },
             {
                 "agent_key": "summary_translator",
-                "role": "Legal Summary And Translation Specialist",
-                "goal": "Summarize relevant legal articles and translate the summary into target languages.",
-                "backstory": "Creates concise summaries and multilingual outputs for legal monitoring.",
+                "role": "Legal Summary, Analysis And Translation Specialist",
+                "goal": "Summarize and analyze relevant legal articles, then translate the summary, content, analysis, and recommendation into all target languages.",
+                "backstory": "Creates concise summaries, analysis, and full multilingual outputs for legal monitoring across all required languages.",
                 "tools": [],
                 "llm": "llama3.2:1b",
                 "verbose": True,
@@ -44,9 +55,18 @@ MOCK_RUNTIME_CONFIGS = {
         ],
         "tasks": [
             {
+                "task_key": "screen_titles",
+                "description": "Review the list of article titles and select those that are potentially relevant to legal topics such as laws, regulations, decrees, court decisions, policies, and compliance. Return the list of relevant article URLs.",
+                "expected_output": "A JSON list of article URLs that passed the title screening.",
+                "agent_key": "title_screener",
+                "context_task_keys": [],
+                "output_key": "title_screening_result",
+                "enabled": True,
+            },
+            {
                 "task_key": "classify_articles",
-                "description": "Classify crawled legal articles by topic and urgency.",
-                "expected_output": "A structured classified list of legal articles.",
+                "description": "Classify the legal article by topic and urgency based on its full content.",
+                "expected_output": "A structured classification result for the article.",
                 "agent_key": "classifier",
                 "context_task_keys": [],
                 "output_key": "classification_result",
@@ -63,8 +83,8 @@ MOCK_RUNTIME_CONFIGS = {
             },
             {
                 "task_key": "summarize_article",
-                "description": "Summarize the relevant legal article into a concise, accurate summary.",
-                "expected_output": "A short summary of the legal article.",
+                "description": "Summarize the relevant legal article into a concise summary. Also provide an analysis of the legal implications and a recommended action.",
+                "expected_output": "A summary, analysis, and recommendation for the legal article in the source language.",
                 "agent_key": "summary_translator",
                 "context_task_keys": [],
                 "output_key": "summary_result",
@@ -72,8 +92,8 @@ MOCK_RUNTIME_CONFIGS = {
             },
             {
                 "task_key": "translate_summary",
-                "description": "Translate the generated summary into two target languages chosen from Korean, English, and Vietnamese.",
-                "expected_output": "A multilingual translation package for the summary.",
+                "description": "Translate the summary, full article content, analysis, and recommendation into each target language. Each target language must have all four fields translated.",
+                "expected_output": "A multilingual translation package with summary, content, analysis, and recommendation for each target language.",
                 "agent_key": "summary_translator",
                 "context_task_keys": ["summarize_article"],
                 "output_key": "translation_result",
@@ -81,6 +101,13 @@ MOCK_RUNTIME_CONFIGS = {
             },
         ],
         "crews": [
+            {
+                "crew_key": "title_screening",
+                "process": "sequential",
+                "agent_keys": ["title_screener"],
+                "task_keys": ["screen_titles"],
+                "enabled": True,
+            },
             {
                 "crew_key": "classification",
                 "process": "sequential",

@@ -1,6 +1,13 @@
 from pydantic import BaseModel, Field
 
 
+class TitleScreeningOutput(BaseModel):
+    relevant_urls: list[str] = Field(
+        default_factory=list,
+        description="List of article URLs that passed the title screening.",
+    )
+
+
 class ClassificationOutput(BaseModel):
     is_relevant: bool = Field(description="Whether the article is relevant to the legal task.")
     relevance_score: int = Field(
@@ -28,9 +35,18 @@ class ReportingOutput(BaseModel):
     )
 
 
+class TranslationItem(BaseModel):
+    summary: str = Field(description="Translated summary.")
+    content: str = Field(description="Translated article content.")
+    analysis: str = Field(description="Translated analysis.")
+    recommendation: str = Field(description="Translated recommendation.")
+
+
 class SummaryTranslationOutput(BaseModel):
-    summary: str = Field(description="Concise summary of the legal article.")
-    translations: dict[str, str] = Field(
+    summary: str = Field(description="Concise summary of the legal article in source language.")
+    analysis: str = Field(description="Analysis of the article in source language.")
+    recommendation: str = Field(description="Recommended action in source language.")
+    translations: dict[str, TranslationItem] = Field(
         default_factory=dict,
-        description="Translations of the summary keyed by language code.",
+        description="Translations keyed by language code. Each contains summary, content, analysis, recommendation.",
     )

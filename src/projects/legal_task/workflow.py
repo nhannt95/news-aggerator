@@ -10,11 +10,15 @@ from src.infrastructure.api_clients.news_source_api_client import NewsSourceApiC
 from src.projects.legal_task.crews.classification.crew import (
     build_crew as build_classification_crew,
 )
+from src.projects.legal_task.crews.classification.crew import (
+    build_title_screening_crew,
+)
 from src.projects.legal_task.crews.summary_translation.crew import (
     build_crew as build_summary_translation_crew,
 )
 from src.tools.crawlers.article_content_crawler import ArticleContentCrawler
 from src.tools.crawlers.latest_news_link_crawler import LatestNewsLinkCrawler
+from src.tools.images.image_downloader import cleanup_images
 from src.tools.sources.source_fetcher import SourceFetcher
 
 
@@ -94,6 +98,28 @@ class LegalTaskWorkflow:
         return {}
 
     @staticmethod
+    def run_title_screening(articles: list[ArticleLink], source: NewsSite) -> list[str]:
+        screening_input = {
+            "source": {
+                "site_id": source.site_id,
+                "name": source.name,
+                "language": source.language,
+            },
+            "articles": [
+                {"url": a.url, "title": a.title}
+                for a in articles
+            ],
+        }
+        raw_result = build_title_screening_crew(screening_input).kickoff(
+            inputs=screening_input
+        )
+        structured = LegalTaskWorkflow._result_to_dict(raw_result)
+        relevant_urls = structured.get("relevant_urls", [])
+        if not isinstance(relevant_urls, list):
+            return [a.url for a in articles]
+        return relevant_urls
+
+    @staticmethod
     def estimate_relevance_score(article: ArticleContent) -> int:
         haystack = " ".join(
             filter(
@@ -112,18 +138,17 @@ class LegalTaskWorkflow:
         return min(score, 100)
 
     @staticmethod
-    def run_summary_translation(article: ArticleContent, source: NewsSite) -> dict[str, Any]:
-        candidates = ["vi", "en", "ko"]
-        if source.language in candidates:
-            candidates.remove(source.language)
-        target_languages = (source.target_languages or ["vi", "en", "ko"])[:]
-        normalized_targets = [lang for lang in target_languages if lang != source.language]
-        if len(normalized_targets) < 2:
-            for language in candidates:
-                if language not in normalized_targets:
-                    normalized_targets.append(language)
-                if len(normalized_targets) >= 2:
-                    break
+    def _resolve_target_languages(source: NewsSite) -> list[str]:
+        target_languages = source.target_languages or ["vi", "en", "ko"]
+        return [lang for lang in target_languages if lang != source.language]
+
+    @staticmethod
+    def run_summary_translation(
+        article: ArticleContent,
+        source: NewsSite,
+        classification: dict[str, Any],
+    ) -> dict[str, Any]:
+        target_languages = LegalTaskWorkflow._resolve_target_languages(source)
 
         summary_input = {
             "source": {
@@ -137,23 +162,31 @@ class LegalTaskWorkflow:
                 "published_at": article.published_at,
                 "content": article.content_markdown,
             },
-            "target_languages": normalized_targets[:2],
+            "classification": {
+                "analysis": classification.get("structured_result", {}).get("reason", ""),
+                "recommendation": classification.get("structured_result", {}).get("recommendation", ""),
+            },
+            "target_languages": target_languages,
         }
         raw_result = build_summary_translation_crew(summary_input).kickoff(
             inputs=summary_input
         )
         structured_result = LegalTaskWorkflow._result_to_dict(raw_result)
 
-        content = article.content_markdown.strip()
-        fallback_summary = content[:1200] if content else ""
-        fallback_translations = {
-            language: f"[{language} translation placeholder]\n{fallback_summary}"
-            for language in normalized_targets[:2]
+        translations = structured_result.get("translations", {})
+        translations[source.language] = {
+            "summary": structured_result.get("summary", ""),
+            "content": article.content_markdown,
+            "analysis": structured_result.get("analysis", ""),
+            "recommendation": structured_result.get("recommendation", ""),
         }
+
         return {
             "raw_result": str(raw_result),
-            "summary": structured_result.get("summary") or fallback_summary,
-            "translations": structured_result.get("translations") or fallback_translations,
+            "summary": structured_result.get("summary", ""),
+            "analysis": structured_result.get("analysis", ""),
+            "recommendation": structured_result.get("recommendation", ""),
+            "translations": translations,
         }
 
     @staticmethod
@@ -199,13 +232,33 @@ class LegalTaskWorkflow:
         if not new_articles:
             return []
 
+        # Step 1: Title screening — agent filters by title
+        logger.info("Title screening %d articles", len(new_articles))
+        relevant_urls = self.run_title_screening(new_articles, site)
+        screened_articles = [a for a in new_articles if a.url in relevant_urls]
+        print(screened_articles)
+        logger.info("Title screening passed: %d / %d", len(screened_articles), len(new_articles))
+        if not screened_articles:
+            return []
+
+        # Step 2: Crawl content only for screened articles
         article_contents = asyncio.run(
             self.content_crawler.crawl_many(
-                [article.url for article in new_articles],
-                extract_method=site.extract_method,
+                [article.url for article in screened_articles],
                 content_selector=site.content_selector,
+                site_id=site.site_id,
             )
         )
+        for i, article in enumerate(article_contents, 1):
+            print(f"\n{'='*60}")
+            print(f"Bai {i}: {article.title}")
+            print(f"URL: {article.url}")
+            print(f"Published: {article.published_at_vn}")
+            print(f"Author: {article.author}")
+            print(f"{'='*60}")
+            print(article.content_markdown)
+
+        return
 
         saved_payload: list[dict[str, Any]] = []
         for article in article_contents:
@@ -222,6 +275,7 @@ class LegalTaskWorkflow:
                 "author": article.author,
                 "description": article.description,
                 "content_markdown": article.content_markdown,
+                "images": article.images,
                 "is_relevant": classification["is_relevant"],
                 "relevance_score": classification["relevance_score"],
                 "classification_result": classification["raw_result"],
@@ -230,8 +284,12 @@ class LegalTaskWorkflow:
             }
 
             if classification["is_relevant"]:
-                summary_translation = self.run_summary_translation(article, site)
+                summary_translation = self.run_summary_translation(
+                    article, site, classification
+                )
                 item["summary"] = summary_translation["summary"]
+                item["analysis"] = summary_translation["analysis"]
+                item["recommendation"] = summary_translation["recommendation"]
                 item["translations"] = summary_translation["translations"]
                 item["summary_translation_result"] = summary_translation["raw_result"]
 
@@ -245,10 +303,14 @@ class LegalTaskWorkflow:
 
         for source in sources:
             processed_items.extend(self.process_site(source))
-
+            break
         save_result = {"status": "skipped", "saved_count": 0}
         if processed_items:
             save_result = self.api_client.save_processed_articles(processed_items)
+
+            for item in processed_items:
+                if item.get("images"):
+                    cleanup_images(item["site_id"], item["article_url"])
 
         return {
             "source_count": len(sources),

@@ -3,6 +3,16 @@ from src.app.runtime.project_runtime_provider import load_project_runtime_config
 from src.projects.legal_task.output_registry import LEGAL_TASK_OUTPUT_MODELS
 
 
+def build_title_screening_crew(project_input: dict) -> object:
+    project_config = load_project_runtime_config("legal_task")
+    return build_crew_from_runtime(
+        project_config,
+        "title_screening",
+        project_input,
+        output_model_by_task_key=LEGAL_TASK_OUTPUT_MODELS,
+    )
+
+
 def build_crew(project_input: dict) -> object:
     project_config = load_project_runtime_config("legal_task")
     return build_crew_from_runtime(

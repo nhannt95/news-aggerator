@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(slots=True)
@@ -19,3 +19,4 @@ class ArticleContent:
     description: str | None
     content_markdown: str
     metadata: dict
+    images: list[dict[str, str]] = field(default_factory=list)
