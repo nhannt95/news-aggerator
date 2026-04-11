@@ -1,16 +1,13 @@
 import asyncio
 import re
 from dataclasses import dataclass
-from typing import Pattern
-from urllib.parse import urlparse
+from html.parser import HTMLParser
+from urllib.parse import urljoin, urlparse
 
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CacheMode, CrawlerRunConfig
 
 from src.common.models.article import ArticleLink
 from src.common.utils.datetime_utils import normalize_to_vietnam_time
-
-
-ARTICLE_URL_PATTERN = re.compile(r"-185\d+(?:\.htm)?$", re.IGNORECASE)
 
 
 @dataclass(slots=True)
@@ -19,60 +16,134 @@ class ListingPageResult:
     articles: list[ArticleLink]
 
 
+class _AnchorParser(HTMLParser):
+    """Parse <a> tags from HTML and collect href + text."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.links: list[dict[str, str]] = []
+        self._current_href: str | None = None
+        self._current_text: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag == "a":
+            attr_dict = dict(attrs)
+            href = (attr_dict.get("href") or "").strip()
+            if href:
+                self._current_href = href
+                self._current_text = []
+
+    def handle_data(self, data: str) -> None:
+        if self._current_href is not None:
+            self._current_text.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "a" and self._current_href is not None:
+            title = " ".join(self._current_text).strip()
+            self.links.append({"href": self._current_href, "title": title})
+            self._current_href = None
+            self._current_text = []
+
+
+EXCLUDED_PREFIXES = (
+    "/rss",
+    "/tag",
+    "/tags",
+    "/video",
+    "/podcast",
+    "/search",
+)
+
+
 class LatestNewsLinkCrawler:
     def __init__(
         self,
         source_urls: list[str],
-        article_pattern: Pattern[str] = ARTICLE_URL_PATTERN,
-        excluded_prefixes: tuple[str, ...] = (
-            "/rss",
-            "/tag",
-            "/tags",
-            "/video",
-            "/podcast",
-            "/search",
-        ),
+        listing_selector: str | None = None,
+        article_url_pattern: str | None = None,
     ) -> None:
         self.source_urls = source_urls
-        self.article_pattern = article_pattern
-        self.excluded_prefixes = excluded_prefixes
+        self.listing_selector = listing_selector
+        self.article_pattern = re.compile(article_url_pattern, re.IGNORECASE) if article_url_pattern else None
         self.browser_config = BrowserConfig(headless=True, verbose=False)
-        self.run_config = CrawlerRunConfig(cache_mode=CacheMode.BYPASS)
 
-    def is_article_url(self, url: str) -> bool:
+    def _build_run_config(self) -> CrawlerRunConfig:
+        js_scroll = """
+        await new Promise(async (resolve) => {
+            let prev = 0;
+            for (let i = 0; i < 10; i++) {
+                window.scrollTo(0, document.body.scrollHeight);
+                await new Promise(r => setTimeout(r, 1500));
+                if (document.body.scrollHeight === prev) break;
+                prev = document.body.scrollHeight;
+            }
+            resolve();
+        });
+        """
+        if self.listing_selector:
+            return CrawlerRunConfig(
+                cache_mode=CacheMode.BYPASS,
+                css_selector=self.listing_selector,
+                js_code=js_scroll,
+                verbose=False,
+            )
+        return CrawlerRunConfig(
+            cache_mode=CacheMode.BYPASS,
+            js_code=js_scroll,
+            verbose=False,
+        )
+
+    def _is_valid_article_url(self, url: str) -> bool:
         parsed = urlparse(url)
-        if not parsed.netloc:
-            return False
-
-        path = parsed.path.lower()
+        path = parsed.path
         if not path or path == "/":
             return False
-        if path.startswith(self.excluded_prefixes):
+        if path.startswith(EXCLUDED_PREFIXES):
             return False
-        return bool(self.article_pattern.search(path))
+        if self.article_pattern:
+            return bool(self.article_pattern.search(path))
+        # Fallback: must have extension like .htm, .html
+        return bool(re.search(r"\.\w+$", path))
 
-    @staticmethod
-    def get_article_title(result: object, fallback_url: str) -> str | None:
-        metadata = getattr(result, "metadata", None) or {}
-        title = (
-            metadata.get("title")
-            or metadata.get("og:title")
-            or metadata.get("twitter:title")
-        )
-        if title:
-            return title.strip()
-        return fallback_url
+    def _parse_anchors_from_html(self, html: str, base_url: str) -> list[dict[str, str]]:
+        parser = _AnchorParser()
+        parser.feed(html)
+
+        base_domain = urlparse(base_url).netloc
+        seen: set[str] = set()
+        results: list[dict[str, str]] = []
+
+        for link in parser.links:
+            href = link["href"]
+            full_url = urljoin(base_url, href)
+            parsed = urlparse(full_url)
+
+            # Only same domain
+            if parsed.netloc != base_domain:
+                continue
+            if not self._is_valid_article_url(full_url):
+                continue
+            if full_url in seen:
+                continue
+
+            seen.add(full_url)
+            results.append({"url": full_url, "title": link["title"]})
+
+        return results
 
     async def crawl_article_info(
         self,
         crawler: AsyncWebCrawler,
         url: str,
+        title_from_listing: str | None = None,
     ) -> ArticleLink:
-        result = await crawler.arun(url=url, config=self.run_config)
+        result = await crawler.arun(
+            url=url, config=CrawlerRunConfig(cache_mode=CacheMode.BYPASS, verbose=False)
+        )
         if not result.success:
             return ArticleLink(
                 url=url,
-                title=None,
+                title=title_from_listing,
                 published_at=None,
                 published_at_vn=None,
             )
@@ -86,9 +157,17 @@ class LatestNewsLinkCrawler:
         )
         published_at, published_at_vn = normalize_to_vietnam_time(raw_published_at)
 
+        title = (
+            metadata.get("title")
+            or metadata.get("og:title")
+            or metadata.get("twitter:title")
+            or title_from_listing
+            or url
+        )
+
         return ArticleLink(
             url=getattr(result, "url", url),
-            title=self.get_article_title(result, url),
+            title=title.strip() if isinstance(title, str) else title,
             published_at=published_at,
             published_at_vn=published_at_vn,
         )
@@ -99,32 +178,38 @@ class LatestNewsLinkCrawler:
         source_url: str,
         limit: int | None = None,
     ) -> ListingPageResult:
-        result = await crawler.arun(url=source_url, config=self.run_config)
+        run_config = self._build_run_config()
+        result = await crawler.arun(url=source_url, config=run_config)
         if not result.success:
             raise RuntimeError(
                 f"Khong crawl duoc trang danh sach: {result.error_message or source_url}"
             )
 
-        internal_links = result.links.get("internal", []) if result.links else []
-        seen: set[str] = set()
-        article_urls: list[str] = []
+        if self.listing_selector and result.html:
+            # Parse <a> from CSS-scoped HTML
+            anchors = self._parse_anchors_from_html(result.html, source_url)
+        else:
+            # Fallback: use crawl4ai internal links
+            internal_links = result.links.get("internal", []) if result.links else []
+            anchors = []
+            for link in internal_links:
+                href = (link or {}).get("href", "").strip()
+                if not href:
+                    continue
+                parsed = urlparse(href)
+                if self._is_valid_article_url(href):
+                    anchors.append({"url": href, "title": (link or {}).get("text", "")})
 
-        for link in internal_links:
-            href = (link or {}).get("href", "").strip()
-            if not href or href in seen:
-                continue
-            if not self.is_article_url(href):
-                continue
-
-            seen.add(href)
-            article_urls.append(href)
-
-            if limit is not None and len(article_urls) >= limit:
-                break
+        if limit is not None:
+            anchors = anchors[:limit]
 
         articles: list[ArticleLink] = []
-        for article_url in article_urls:
-            articles.append(await self.crawl_article_info(crawler, article_url))
+        for anchor in anchors:
+            articles.append(
+                await self.crawl_article_info(
+                    crawler, anchor["url"], anchor.get("title")
+                )
+            )
 
         return ListingPageResult(source_url=source_url, articles=articles)
 

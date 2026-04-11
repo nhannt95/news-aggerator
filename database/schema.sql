@@ -24,6 +24,7 @@ CREATE TABLE news_sites (
     relevance_threshold INT     NOT NULL DEFAULT 70,
     target_languages JSON       NULL COMMENT 'e.g. ["vi","en","ko"]',
     active        TINYINT(1)    NOT NULL DEFAULT 1,
+    listing_selector VARCHAR(255) NULL COMMENT 'CSS selector for listing page to extract article links',
     content_selector VARCHAR(255) NULL COMMENT 'CSS selector to extract article content',
     created_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

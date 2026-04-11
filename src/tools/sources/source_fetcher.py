@@ -21,7 +21,9 @@ class SourceFetcher:
                 relevance_threshold=item.get("relevance_threshold", 70),
                 target_languages=item.get("target_languages") or ["vi", "en"],
                 active=item.get("active", True),
+                listing_selector=item.get("listing_selector"),
                 content_selector=item.get("content_selector"),
+                article_url_pattern=item.get("article_url_pattern"),
             )
             for item in raw_sites
             if item.get("latest_page_url")

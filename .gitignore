@@ -21,7 +21,6 @@ storage/
 htmlcov/
 
 # Environment files
-.env
 .env.*
 !.env.example
 

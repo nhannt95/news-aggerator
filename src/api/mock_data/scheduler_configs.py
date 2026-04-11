@@ -1,4 +1,4 @@
-MOCK_SCHEDULER_CONFIGS = [
+MOCK_SCHEDULER_CONFIGS: list[dict] = [
     {
         "job_id": "er_task_every_15m",
         "project_name": "er_task",

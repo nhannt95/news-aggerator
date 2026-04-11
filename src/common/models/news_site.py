@@ -14,4 +14,6 @@ class NewsSite:
     relevance_threshold: int = 70
     target_languages: list[str] | None = None
     active: bool = True
+    listing_selector: str | None = None
     content_selector: str | None = None
+    article_url_pattern: str | None = None

@@ -98,7 +98,7 @@ class LegalTaskWorkflow:
         return {}
 
     @staticmethod
-    def run_title_screening(articles: list[ArticleLink], source: NewsSite) -> list[str]:
+    def _screen_batch(batch: list[ArticleLink], source: NewsSite) -> list[str]:
         screening_input = {
             "source": {
                 "site_id": source.site_id,
@@ -107,7 +107,7 @@ class LegalTaskWorkflow:
             },
             "articles": [
                 {"url": a.url, "title": a.title}
-                for a in articles
+                for a in batch
             ],
         }
         raw_result = build_title_screening_crew(screening_input).kickoff(
@@ -116,7 +116,23 @@ class LegalTaskWorkflow:
         structured = LegalTaskWorkflow._result_to_dict(raw_result)
         relevant_urls = structured.get("relevant_urls", [])
         if not isinstance(relevant_urls, list):
-            return [a.url for a in articles]
+            return [a.url for a in batch]
+        return relevant_urls
+
+    @staticmethod
+    def run_title_screening(
+        articles: list[ArticleLink],
+        source: NewsSite,
+        batch_size: int = 20,
+    ) -> list[str]:
+        if len(articles) <= batch_size:
+            return LegalTaskWorkflow._screen_batch(articles, source)
+
+        relevant_urls: list[str] = []
+        for i in range(0, len(articles), batch_size):
+            batch = articles[i : i + batch_size]
+            logger.info("Screening batch %d-%d / %d", i + 1, i + len(batch), len(articles))
+            relevant_urls.extend(LegalTaskWorkflow._screen_batch(batch, source))
         return relevant_urls
 
     @staticmethod
@@ -147,6 +163,7 @@ class LegalTaskWorkflow:
         article: ArticleContent,
         source: NewsSite,
         classification: dict[str, Any],
+        crew: object | None = None,
     ) -> dict[str, Any]:
         target_languages = LegalTaskWorkflow._resolve_target_languages(source)
 
@@ -168,7 +185,9 @@ class LegalTaskWorkflow:
             },
             "target_languages": target_languages,
         }
-        raw_result = build_summary_translation_crew(summary_input).kickoff(
+        if crew is None:
+            crew = build_summary_translation_crew(summary_input)
+        raw_result = crew.kickoff(
             inputs=summary_input
         )
         structured_result = LegalTaskWorkflow._result_to_dict(raw_result)
@@ -190,7 +209,9 @@ class LegalTaskWorkflow:
         }
 
     @staticmethod
-    def run_classification(article: ArticleContent, source: NewsSite) -> dict[str, Any]:
+    def run_classification(
+        article: ArticleContent, source: NewsSite, crew: object | None = None,
+    ) -> dict[str, Any]:
         classification_input = {
             "source": {
                 "site_id": source.site_id,
@@ -204,9 +225,9 @@ class LegalTaskWorkflow:
                 "content": article.content_markdown,
             },
         }
-        raw_result = build_classification_crew(classification_input).kickoff(
-            inputs=classification_input
-        )
+        if crew is None:
+            crew = build_classification_crew(classification_input)
+        raw_result = crew.kickoff(inputs=classification_input)
         structured_result = LegalTaskWorkflow._result_to_dict(raw_result)
         relevance_score = structured_result.get("relevance_score")
         if not isinstance(relevance_score, int):
@@ -223,8 +244,13 @@ class LegalTaskWorkflow:
 
     def process_site(self, site: NewsSite) -> list[dict[str, Any]]:
         logger.info("Processing site %s", site.latest_page_url)
-        link_crawler = LatestNewsLinkCrawler(source_urls=[site.latest_page_url])
+        link_crawler = LatestNewsLinkCrawler(
+            source_urls=[site.latest_page_url],
+            listing_selector=site.listing_selector,
+            article_url_pattern=site.article_url_pattern,
+        )
         listing_results = asyncio.run(link_crawler.extract_latest_links())
+
         if not listing_results:
             return []
 
@@ -232,11 +258,11 @@ class LegalTaskWorkflow:
         if not new_articles:
             return []
 
+        print('-------------------',new_articles)
         # Step 1: Title screening — agent filters by title
         logger.info("Title screening %d articles", len(new_articles))
         relevant_urls = self.run_title_screening(new_articles, site)
         screened_articles = [a for a in new_articles if a.url in relevant_urls]
-        print(screened_articles)
         logger.info("Title screening passed: %d / %d", len(screened_articles), len(new_articles))
         if not screened_articles:
             return []
@@ -258,11 +284,14 @@ class LegalTaskWorkflow:
             print(f"{'='*60}")
             print(article.content_markdown)
 
-        return
+        return []
+
+        classification_crew = build_classification_crew({})
+        summary_crew = build_summary_translation_crew({})
 
         saved_payload: list[dict[str, Any]] = []
         for article in article_contents:
-            classification = self.run_classification(article, site)
+            classification = self.run_classification(article, site, classification_crew)
 
             item: dict[str, Any] = {
                 "project_name": "legal_task",
@@ -285,7 +314,7 @@ class LegalTaskWorkflow:
 
             if classification["is_relevant"]:
                 summary_translation = self.run_summary_translation(
-                    article, site, classification
+                    article, site, classification, summary_crew
                 )
                 item["summary"] = summary_translation["summary"]
                 item["analysis"] = summary_translation["analysis"]
@@ -304,6 +333,8 @@ class LegalTaskWorkflow:
         for source in sources:
             processed_items.extend(self.process_site(source))
             break
+        
+        return
         save_result = {"status": "skipped", "saved_count": 0}
         if processed_items:
             save_result = self.api_client.save_processed_articles(processed_items)

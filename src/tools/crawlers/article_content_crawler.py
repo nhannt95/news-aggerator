@@ -17,8 +17,9 @@ class ArticleContentCrawler:
             return CrawlerRunConfig(
                 cache_mode=CacheMode.BYPASS,
                 css_selector=content_selector,
+                verbose=False,
             )
-        return CrawlerRunConfig(cache_mode=CacheMode.BYPASS)
+        return CrawlerRunConfig(cache_mode=CacheMode.BYPASS, verbose=False)
 
     @staticmethod
     def _get_markdown_text(markdown: Any) -> str:

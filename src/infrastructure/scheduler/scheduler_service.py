@@ -1,4 +1,4 @@
-from apscheduler.schedulers.blocking import BlockingScheduler
+from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
@@ -19,9 +19,19 @@ def _run_project_job(project_name: str, project_input: dict) -> object:
 
 
 class SchedulerService:
+    _instance: "SchedulerService | None" = None
+
     def __init__(self, config_client: SchedulerConfigApiClient) -> None:
         self.config_client = config_client
-        self.scheduler = BlockingScheduler(timezone="Asia/Ho_Chi_Minh")
+        self.scheduler = BackgroundScheduler(timezone="Asia/Ho_Chi_Minh")
+
+    @classmethod
+    def get_instance(cls) -> "SchedulerService | None":
+        return cls._instance
+
+    @classmethod
+    def set_instance(cls, instance: "SchedulerService") -> None:
+        cls._instance = instance
 
     def fetch_job_configs(self) -> list[SchedulerJobConfig]:
         raw_items = self.config_client.get_scheduler_configs()
@@ -46,6 +56,11 @@ class SchedulerService:
         return CronTrigger(timezone=job.timezone, **job.trigger_args)
 
     def sync_jobs(self) -> None:
+        # Remove all existing jobs
+        for job in self.scheduler.get_jobs():
+            job.remove()
+
+        # Add from config
         jobs = self.fetch_job_configs()
         for job in jobs:
             if not job.enabled:
@@ -64,20 +79,26 @@ class SchedulerService:
             logger.info("Scheduled job %s for project %s", job.job_id, job.project_name)
 
     def list_jobs(self) -> list[dict[str, str]]:
-        jobs = self.fetch_job_configs()
         return [
             {
-                "job_id": job.job_id,
-                "project_name": job.project_name,
-                "trigger_type": job.trigger_type,
-                "timezone": job.timezone,
-                "trigger_args": str(job.trigger_args),
+                "job_id": job.id,
+                "next_run": str(job.next_run_time) if job.next_run_time else None,
             }
-            for job in jobs
-            if job.enabled
+            for job in self.scheduler.get_jobs()
         ]
+
+    def reload(self) -> dict:
+        """Reload all jobs from config API."""
+        self.sync_jobs()
+        jobs = self.list_jobs()
+        logger.info("Scheduler reloaded: %d jobs", len(jobs))
+        return {"status": "reloaded", "job_count": len(jobs)}
 
     def start(self) -> None:
         self.sync_jobs()
-        logger.info("Scheduler started")
         self.scheduler.start()
+        logger.info("Scheduler started (background)")
+
+    def stop(self) -> None:
+        self.scheduler.shutdown(wait=False)
+        logger.info("Scheduler stopped")
