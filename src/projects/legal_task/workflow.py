@@ -14,10 +14,14 @@ from src.projects.legal_task.crews.classification.crew import (
     build_title_screening_crew,
 )
 from src.projects.legal_task.crews.summary_translation.crew import (
-    build_crew as build_summary_translation_crew,
+    build_crew as build_summary_crew,
+    build_translation_crew,
 )
+from src.api.services.accepted_article_service import AcceptedArticleService
+from src.infrastructure.db.mysql_client import fetch_one
 from src.tools.crawlers.article_content_crawler import ArticleContentCrawler
 from src.tools.crawlers.latest_news_link_crawler import LatestNewsLinkCrawler
+from src.tools.crawlers.sitemap_crawler import SitemapCrawler
 from src.tools.images.image_downloader import cleanup_images
 from src.tools.sources.source_fetcher import SourceFetcher
 
@@ -43,13 +47,17 @@ LEGAL_KEYWORDS = (
 def _parse_iso_datetime(value: str | None) -> datetime | None:
     if not value:
         return None
-    normalized = value.strip()
+    normalized = str(value).strip()
     if not normalized:
         return None
     if normalized.endswith("Z"):
         normalized = normalized[:-1] + "+00:00"
     try:
-        return datetime.fromisoformat(normalized)
+        dt = datetime.fromisoformat(normalized)
+        if dt.tzinfo is None:
+            from zoneinfo import ZoneInfo
+            dt = dt.replace(tzinfo=ZoneInfo("Asia/Ho_Chi_Minh"))
+        return dt
     except ValueError:
         return None
 
@@ -153,58 +161,111 @@ class LegalTaskWorkflow:
                 score += 15
         return min(score, 100)
 
+    LANG_NAMES: dict[str, str] = {
+        "vi": "Vietnamese",
+        "en": "English",
+        "ko": "Korean",
+        "ja": "Japanese",
+        "zh": "Chinese",
+        "fr": "French",
+        "th": "Thai",
+    }
+
     @staticmethod
     def _resolve_target_languages(source: NewsSite) -> list[str]:
         target_languages = source.target_languages or ["vi", "en", "ko"]
         return [lang for lang in target_languages if lang != source.language]
 
     @staticmethod
+    def _lang_label(code: str) -> str:
+        return LegalTaskWorkflow.LANG_NAMES.get(code, code)
+
+    @staticmethod
+    def _run_summarize(article: ArticleContent, source_lang: str, crew: object) -> dict[str, str]:
+        """Step 1: Summarize + analyze in source language."""
+        content = (article.content_markdown or "")[:3000]
+        lang_name = LegalTaskWorkflow._lang_label(source_lang)
+
+        inputs = {
+            "source_language": lang_name,
+            "article_title": article.title or "",
+            "article_content": content,
+            "instruction": (
+                f"Read this {lang_name} article and return JSON with:\n"
+                f"- title: the article title in {lang_name}\n"
+                f"- summary: 3-5 sentence summary in {lang_name}\n"
+                f"- analysis: analysis of implications in {lang_name}\n"
+                f"- recommendation: recommended action in {lang_name}"
+            ),
+        }
+        raw = crew.kickoff(inputs=inputs)
+        result = LegalTaskWorkflow._result_to_dict(raw)
+        return {
+            "title": result.get("title") or article.title or "",
+            "summary": result.get("summary", ""),
+            "content": article.content_markdown,
+            "analysis": result.get("analysis", ""),
+            "recommendation": result.get("recommendation", ""),
+        }
+
+    @staticmethod
+    def _run_translate(source_data: dict[str, str], source_lang: str, target_lang: str, crew: object) -> dict[str, str]:
+        """Step 2: Translate one language at a time."""
+        source_name = LegalTaskWorkflow._lang_label(source_lang)
+        target_name = LegalTaskWorkflow._lang_label(target_lang)
+
+        inputs = {
+            "source_language": source_name,
+            "target_language": target_name,
+            "title": source_data["title"],
+            "summary": source_data["summary"],
+            "content": (source_data["content"] or "")[:3000],
+            "analysis": source_data["analysis"],
+            "recommendation": source_data["recommendation"],
+            "instruction": (
+                f"Translate ALL of the following from {source_name} to {target_name}.\n"
+                f"Return JSON with: title, summary, content, analysis, recommendation.\n"
+                f"All values must be in {target_name}."
+            ),
+        }
+        raw = crew.kickoff(inputs=inputs)
+        result = LegalTaskWorkflow._result_to_dict(raw)
+        return {
+            "title": result.get("title", ""),
+            "summary": result.get("summary", ""),
+            "content": result.get("content", ""),
+            "analysis": result.get("analysis", ""),
+            "recommendation": result.get("recommendation", ""),
+        }
+
+    @staticmethod
     def run_summary_translation(
         article: ArticleContent,
         source: NewsSite,
-        classification: dict[str, Any],
-        crew: object | None = None,
     ) -> dict[str, Any]:
         target_languages = LegalTaskWorkflow._resolve_target_languages(source)
 
-        summary_input = {
-            "source": {
-                "site_id": source.site_id,
-                "name": source.name,
-                "language": source.language,
-            },
-            "article": {
-                "url": article.url,
-                "title": article.title,
-                "published_at": article.published_at,
-                "content": article.content_markdown,
-            },
-            "classification": {
-                "analysis": classification.get("structured_result", {}).get("reason", ""),
-                "recommendation": classification.get("structured_result", {}).get("recommendation", ""),
-            },
-            "target_languages": target_languages,
-        }
-        if crew is None:
-            crew = build_summary_translation_crew(summary_input)
-        raw_result = crew.kickoff(
-            inputs=summary_input
-        )
-        structured_result = LegalTaskWorkflow._result_to_dict(raw_result)
+        summarize_crew = build_summary_crew({})
+        translate_crew = build_translation_crew({})
 
-        translations = structured_result.get("translations", {})
-        translations[source.language] = {
-            "summary": structured_result.get("summary", ""),
-            "content": article.content_markdown,
-            "analysis": structured_result.get("analysis", ""),
-            "recommendation": structured_result.get("recommendation", ""),
-        }
+        # Step 1: Summarize in source language
+        logger.info("Summarizing article in %s", source.language)
+        source_data = LegalTaskWorkflow._run_summarize(article, source.language, summarize_crew)
+
+        # Step 2: Translate into each target language separately
+        translations: dict[str, dict[str, str]] = {}
+        translations[source.language] = source_data
+
+        for lang in target_languages:
+            logger.info("Translating to %s", lang)
+            translations[lang] = LegalTaskWorkflow._run_translate(
+                source_data, source.language, lang, translate_crew
+            )
 
         return {
-            "raw_result": str(raw_result),
-            "summary": structured_result.get("summary", ""),
-            "analysis": structured_result.get("analysis", ""),
-            "recommendation": structured_result.get("recommendation", ""),
+            "summary": source_data["summary"],
+            "analysis": source_data["analysis"],
+            "recommendation": source_data["recommendation"],
             "translations": translations,
         }
 
@@ -242,57 +303,79 @@ class LegalTaskWorkflow:
             "is_relevant": is_relevant,
         }
 
-    def process_site(self, site: NewsSite) -> list[dict[str, Any]]:
-        logger.info("Processing site %s", site.latest_page_url)
+    def _fetch_article_links(self, site: NewsSite) -> list[ArticleLink]:
+        if site.fetch_method == "sitemap" and site.sitemap_url:
+            logger.info("Fetching via sitemap: %s", site.sitemap_url)
+            crawler = SitemapCrawler(
+                sitemap_url=site.sitemap_url,
+                article_url_pattern=site.article_url_pattern,
+            )
+            result = crawler.fetch()
+            return result.articles
+
+        logger.info("Fetching via listing: %s", site.latest_page_url)
         link_crawler = LatestNewsLinkCrawler(
             source_urls=[site.latest_page_url],
             listing_selector=site.listing_selector,
             article_url_pattern=site.article_url_pattern,
         )
         listing_results = asyncio.run(link_crawler.extract_latest_links())
-
         if not listing_results:
             return []
+        return listing_results[0].articles
 
-        new_articles = self.filter_new_articles(site, listing_results[0].articles)
+    def process_site(self, site: NewsSite) -> list[dict[str, Any]]:
+        logger.info("Processing site %s (%s)", site.name, site.fetch_method)
+        all_articles = self._fetch_article_links(site)
+        if not all_articles:
+            return []
+
+        new_articles = self.filter_new_articles(site, all_articles)
         if not new_articles:
             return []
 
-        print('-------------------',new_articles)
-        # Step 1: Title screening — agent filters by title
-        logger.info("Title screening %d articles", len(new_articles))
-        relevant_urls = self.run_title_screening(new_articles, site)
-        screened_articles = [a for a in new_articles if a.url in relevant_urls]
-        logger.info("Title screening passed: %d / %d", len(screened_articles), len(new_articles))
-        if not screened_articles:
-            return []
+        # # Step 1: Title screening — agent filters by title
+        # logger.info("Title screening %d articles", len(new_articles))
+        # relevant_urls = self.run_title_screening(new_articles, site)
+        # screened_articles = [a for a in new_articles if a.url in relevant_urls]
+        # logger.info("Title screening passed: %d / %d", len(screened_articles), len(new_articles))
+        # if not screened_articles:
+        #     return []
+
+        # TEST: skip title screening, take first article only
+        screened_articles = new_articles[:1]
 
         # Step 2: Crawl content only for screened articles
         article_contents = asyncio.run(
             self.content_crawler.crawl_many(
-                [article.url for article in screened_articles],
+                screened_articles,
                 content_selector=site.content_selector,
                 site_id=site.site_id,
             )
         )
-        for i, article in enumerate(article_contents, 1):
-            print(f"\n{'='*60}")
-            print(f"Bai {i}: {article.title}")
-            print(f"URL: {article.url}")
-            print(f"Published: {article.published_at_vn}")
-            print(f"Author: {article.author}")
-            print(f"{'='*60}")
-            print(article.content_markdown)
-
-        return []
 
         classification_crew = build_classification_crew({})
-        summary_crew = build_summary_translation_crew({})
 
         saved_payload: list[dict[str, Any]] = []
         for article in article_contents:
+            print("bat dau phan loai", article)
             classification = self.run_classification(article, site, classification_crew)
 
+            # if not classification["is_relevant"]:
+            #     logger.info("Skipping irrelevant article: %s", article.url)
+            #     continue
+            print("bat dau tom tat va dich thuat")
+            summary_translation = self.run_summary_translation(
+                article, site
+            )
+            print("xong tom tat va dich thuat")
+            import json as _json
+            for lang, trans in summary_translation.get("translations", {}).items():
+                print(f"\n=== {lang} ===")
+                if isinstance(trans, dict):
+                    print(_json.dumps(trans, ensure_ascii=False, indent=2)[:500])
+                else:
+                    print(trans)
             item: dict[str, Any] = {
                 "project_name": "legal_task",
                 "site_id": site.site_id,
@@ -303,24 +386,13 @@ class LegalTaskWorkflow:
                 "published_at_vn": article.published_at_vn,
                 "author": article.author,
                 "description": article.description,
-                "content_markdown": article.content_markdown,
-                "images": article.images,
                 "is_relevant": classification["is_relevant"],
                 "relevance_score": classification["relevance_score"],
                 "classification_result": classification["raw_result"],
                 "classification_structured": classification["structured_result"],
-                "report_generated": False,
+                "images": article.images,
+                "translations": summary_translation["translations"],
             }
-
-            if classification["is_relevant"]:
-                summary_translation = self.run_summary_translation(
-                    article, site, classification, summary_crew
-                )
-                item["summary"] = summary_translation["summary"]
-                item["analysis"] = summary_translation["analysis"]
-                item["recommendation"] = summary_translation["recommendation"]
-                item["translations"] = summary_translation["translations"]
-                item["summary_translation_result"] = summary_translation["raw_result"]
 
             saved_payload.append(item)
 
@@ -334,10 +406,24 @@ class LegalTaskWorkflow:
             processed_items.extend(self.process_site(source))
             break
         
-        return
         save_result = {"status": "skipped", "saved_count": 0}
         if processed_items:
+            # Save raw data to na_processed_articles
             save_result = self.api_client.save_processed_articles(processed_items)
+
+            # Save translations to na_accepted_article_translations
+            accepted_service = AcceptedArticleService()
+            for item in processed_items:
+                translations = item.get("translations", {})
+                if not translations:
+                    continue
+                # Get processed article id by url
+                row = fetch_one(
+                    "SELECT id FROM na_processed_articles WHERE article_url = %s",
+                    (item["article_url"],),
+                )
+                if row:
+                    accepted_service.save_translations(row["id"], translations)
 
             for item in processed_items:
                 if item.get("images"):

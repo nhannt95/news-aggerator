@@ -1,3 +1,4 @@
+import os
 from typing import Any
 
 from src.common.config.settings import settings
@@ -16,18 +17,67 @@ def _require_crewai() -> tuple[Any, Any, Any, Any, Any]:
     return Agent, Crew, LLM, Process, Task
 
 
-def _normalize_ollama_model(model_name: str | None) -> str:
-    chosen_model = (model_name or settings.ollama_model).strip()
-    if chosen_model.startswith("ollama/"):
-        return chosen_model
-    return f"ollama/{chosen_model}"
+def _ensure_env_keys() -> None:
+    """CrewAI reads API keys from env vars directly."""
+    if settings.openrouter_api_key and "OPENROUTER_API_KEY" not in os.environ:
+        os.environ["OPENROUTER_API_KEY"] = settings.openrouter_api_key
+    if settings.openai_api_key and "OPENAI_API_KEY" not in os.environ:
+        os.environ["OPENAI_API_KEY"] = settings.openai_api_key
 
 
-def _build_ollama_llm(model_name: str | None) -> object:
+def _build_llm(model_name: str | None) -> object:
+    """Build LLM based on model_name or default provider from settings.
+
+    Model name conventions:
+      - "openai/gpt-4o-mini"              → OpenAI
+      - "openrouter/google/gemini-2.0..."  → OpenRouter
+      - "ollama/llama3.2:1b"              → Ollama
+      - "gpt-4o-mini"                     → OpenAI (auto-detect)
+      - "llama3.2:1b"                     → uses LLM_PROVIDER from .env
+    """
+    _ensure_env_keys()
     _, _, LLM, _, _ = _require_crewai()
-    normalized_model = _normalize_ollama_model(model_name)
+    chosen = (model_name or "").strip()
+
+    # Explicit provider prefix
+    if chosen.startswith("openai/"):
+        return LLM(model=chosen, api_key=settings.openai_api_key)
+    if chosen.startswith("openrouter/"):
+        return LLM(
+            model=chosen,
+            api_key=settings.openrouter_api_key,
+            base_url="https://openrouter.ai/api/v1",
+        )
+    if chosen.startswith("ollama/"):
+        return LLM(
+            model=chosen,
+            base_url=settings.ollama_base_url,
+            api_base=settings.ollama_base_url,
+        )
+
+    # Auto-detect by model name
+    if chosen.startswith("gpt-") or chosen.startswith("o1") or chosen.startswith("o3"):
+        return LLM(model=f"openai/{chosen}", api_key=settings.openai_api_key)
+
+    # Fall back to provider setting
+    if settings.llm_provider == "openai":
+        model = chosen or settings.openai_model
+        return LLM(model=f"openai/{model}", api_key=settings.openai_api_key)
+
+    if settings.llm_provider == "openrouter":
+        model = chosen or settings.openrouter_model
+        return LLM(
+            model=f"openrouter/{model}",
+            api_key=settings.openrouter_api_key,
+            base_url="https://openrouter.ai/api/v1",
+        )
+
+    # Default: Ollama
+    model = chosen or settings.ollama_model
+    if not model.startswith("ollama/"):
+        model = f"ollama/{model}"
     return LLM(
-        model=normalized_model,
+        model=model,
         base_url=settings.ollama_base_url,
         api_base=settings.ollama_base_url,
     )
@@ -54,7 +104,7 @@ def build_agents_from_config(
             backstory=config.backstory,
             verbose=config.verbose,
             allow_delegation=config.allow_delegation,
-            llm=_build_ollama_llm(config.llm),
+            llm=_build_llm(config.llm),
         )
     return agents
 

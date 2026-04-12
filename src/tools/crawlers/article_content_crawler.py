@@ -2,7 +2,7 @@ from typing import Any
 
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CacheMode, CrawlerRunConfig
 
-from src.common.models.article import ArticleContent
+from src.common.models.article import ArticleContent, ArticleLink
 from src.common.utils.datetime_utils import normalize_to_vietnam_time
 from src.tools.images.image_downloader import download_images
 
@@ -53,12 +53,13 @@ class ArticleContentCrawler:
         content_selector: str | None = None,
         site_id: str | None = None,
     ) -> ArticleContent:
-        run_config = self._build_run_config(content_selector)
-        result = await crawler.arun(url=url, config=run_config)
-        if not result.success:
-            raise RuntimeError(f"Khong crawl duoc bai viet: {result.error_message or url}")
+        # First: crawl without selector to get metadata (title, author, etc.)
+        meta_config = CrawlerRunConfig(cache_mode=CacheMode.BYPASS, verbose=False)
+        meta_result = await crawler.arun(url=url, config=meta_config)
+        if not meta_result.success:
+            raise RuntimeError(f"Khong crawl duoc bai viet: {meta_result.error_message or url}")
 
-        metadata = result.metadata or {}
+        metadata = meta_result.metadata or {}
         raw_published_at = (
             metadata.get("article:published_time")
             or metadata.get("published_time")
@@ -67,16 +68,24 @@ class ArticleContentCrawler:
         )
         published_at, published_at_vn = normalize_to_vietnam_time(raw_published_at)
 
-        raw_content = self._get_markdown_text(
-            getattr(result, "markdown", None)
-        ).strip()
+        # Second: get content with selector if provided
+        if content_selector:
+            content_config = self._build_run_config(content_selector)
+            content_result = await crawler.arun(url=url, config=content_config)
+            raw_content = self._get_markdown_text(
+                getattr(content_result, "markdown", None)
+            ).strip()
+        else:
+            raw_content = self._get_markdown_text(
+                getattr(meta_result, "markdown", None)
+            ).strip()
 
         images: list[dict[str, str]] = []
         if site_id:
             raw_content, images = download_images(raw_content, site_id, url)
 
         return ArticleContent(
-            url=getattr(result, "url", url),
+            url=getattr(meta_result, "url", url),
             title=self._get_title(metadata, url),
             published_at=published_at,
             published_at_vn=published_at_vn,
@@ -100,14 +109,18 @@ class ArticleContentCrawler:
 
     async def crawl_many(
         self,
-        urls: list[str],
+        articles: list[ArticleLink],
         content_selector: str | None = None,
         site_id: str | None = None,
     ) -> list[ArticleContent]:
         async with AsyncWebCrawler(config=self.browser_config) as crawler:
             results: list[ArticleContent] = []
-            for url in urls:
-                results.append(
-                    await self.crawl_article(crawler, url, content_selector, site_id)
+            for article in articles:
+                content = await self.crawl_article(
+                    crawler, article.url, content_selector, site_id
                 )
+                # Override with title from listing/sitemap if available
+                if article.title and (not content.title or content.title == article.url):
+                    content.title = article.title
+                results.append(content)
             return results

@@ -10,7 +10,7 @@ class SourceFetcher:
         raw_sites = self.client.get_latest_pages(project_name=project_name)
         return [
             NewsSite(
-                site_id=str(item.get("id", "")),
+                site_id=str(item.get("site_id") or item.get("id", "")),
                 name=item.get("name", ""),
                 latest_page_url=item.get("latest_page_url", ""),
                 domain=item.get("domain"),
@@ -21,6 +21,8 @@ class SourceFetcher:
                 relevance_threshold=item.get("relevance_threshold", 70),
                 target_languages=item.get("target_languages") or ["vi", "en"],
                 active=item.get("active", True),
+                fetch_method=item.get("fetch_method", "listing"),
+                sitemap_url=item.get("sitemap_url"),
                 listing_selector=item.get("listing_selector"),
                 content_selector=item.get("content_selector"),
                 article_url_pattern=item.get("article_url_pattern"),

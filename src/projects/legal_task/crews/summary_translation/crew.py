@@ -11,3 +11,13 @@ def build_crew(project_input: dict) -> object:
         project_input,
         output_model_by_task_key=LEGAL_TASK_OUTPUT_MODELS,
     )
+
+
+def build_translation_crew(project_input: dict) -> object:
+    project_config = load_project_runtime_config("legal_task")
+    return build_crew_from_runtime(
+        project_config,
+        "translation",
+        project_input,
+        output_model_by_task_key=LEGAL_TASK_OUTPUT_MODELS,
+    )

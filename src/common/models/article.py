@@ -7,6 +7,7 @@ class ArticleLink:
     title: str | None
     published_at: str | None
     published_at_vn: str | None
+    keywords: list[str] = field(default_factory=list)
 
 
 @dataclass(slots=True)

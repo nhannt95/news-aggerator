@@ -1,8 +1,11 @@
-from fastapi import APIRouter, Query
+import logging
+
+from fastapi import APIRouter, HTTPException, Query
 
 from src.api.services.processed_article_service import ProcessedArticleService
 
 
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["storage"])
 service = ProcessedArticleService()
 
@@ -10,7 +13,11 @@ service = ProcessedArticleService()
 @router.post("/processed-articles")
 def save_processed_articles(payload: dict) -> dict:
     items = payload.get("data", [])
-    return service.save_processed_articles(items)
+    try:
+        return service.save_processed_articles(items)
+    except Exception as e:
+        logger.error("save_processed_articles failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/processed-articles")

@@ -4,9 +4,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from src.common.logging.logger import get_logger
 from src.common.models.scheduler_config import SchedulerJobConfig
-from src.infrastructure.api_clients.scheduler_config_api_client import (
-    SchedulerConfigApiClient,
-)
+from src.infrastructure.db.mysql_client import fetch_all
 
 
 logger = get_logger(__name__)
@@ -21,8 +19,7 @@ def _run_project_job(project_name: str, project_input: dict) -> object:
 class SchedulerService:
     _instance: "SchedulerService | None" = None
 
-    def __init__(self, config_client: SchedulerConfigApiClient) -> None:
-        self.config_client = config_client
+    def __init__(self) -> None:
         self.scheduler = BackgroundScheduler(timezone="Asia/Ho_Chi_Minh")
 
     @classmethod
@@ -34,15 +31,15 @@ class SchedulerService:
         cls._instance = instance
 
     def fetch_job_configs(self) -> list[SchedulerJobConfig]:
-        raw_items = self.config_client.get_scheduler_configs()
+        raw_items = fetch_all("SELECT * FROM na_scheduler_configs")
         return [
             SchedulerJobConfig(
-                job_id=str(item.get("job_id") or item.get("id") or item["project_name"]),
+                job_id=str(item.get("job_id") or item["project_name"]),
                 project_name=item["project_name"],
                 trigger_type=item.get("trigger_type", "cron"),
                 trigger_args=item.get("trigger_args", {}),
                 input_payload=item.get("input_payload", {}),
-                enabled=item.get("enabled", True),
+                enabled=bool(item.get("enabled", True)),
                 timezone=item.get("timezone", "Asia/Ho_Chi_Minh"),
             )
             for item in raw_items
@@ -56,11 +53,9 @@ class SchedulerService:
         return CronTrigger(timezone=job.timezone, **job.trigger_args)
 
     def sync_jobs(self) -> None:
-        # Remove all existing jobs
         for job in self.scheduler.get_jobs():
             job.remove()
 
-        # Add from config
         jobs = self.fetch_job_configs()
         for job in jobs:
             if not job.enabled:
@@ -88,7 +83,6 @@ class SchedulerService:
         ]
 
     def reload(self) -> dict:
-        """Reload all jobs from config API."""
         self.sync_jobs()
         jobs = self.list_jobs()
         logger.info("Scheduler reloaded: %d jobs", len(jobs))
