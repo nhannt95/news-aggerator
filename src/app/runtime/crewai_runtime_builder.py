@@ -2,6 +2,9 @@ import os
 from typing import Any
 
 from src.common.config.settings import settings
+from src.common.logging.logger import get_logger
+
+logger = get_logger(__name__)
 from src.common.models.runtime_config import (
     CrewRuntimeConfig,
     ProjectRuntimeConfig,
@@ -98,6 +101,10 @@ def build_agents_from_config(
     agents: dict[str, object] = {}
     for agent_key in crew_config.agent_keys:
         config = enabled_agents[agent_key]
+        logger.info(
+            "Agent [%s] role=%s, llm=%s, goal=%s",
+            agent_key, config.role, config.llm, config.goal[:80],
+        )
         agents[agent_key] = Agent(
             role=config.role,
             goal=config.goal,
@@ -145,6 +152,10 @@ def build_tasks_from_config(
         if output_model_by_task_key and config.task_key in output_model_by_task_key:
             task_kwargs["output_json"] = output_model_by_task_key[config.task_key]
 
+        logger.info(
+            "Task [%s] agent=%s, desc=%s",
+            task_key, config.agent_key, config.description[:80],
+        )
         task = Task(**task_kwargs)
         built_tasks[task_key] = task
         ordered_tasks.append(task)
@@ -180,5 +191,5 @@ def build_crew_from_runtime(
         agents=list(agents.values()),
         tasks=tasks,
         process=process,
-        verbose=True,
+        verbose=False,
     )
