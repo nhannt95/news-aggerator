@@ -164,7 +164,7 @@ class LegalTaskWorkflow:
     LANG_NAMES: dict[str, str] = {
         "vi": "Vietnamese",
         "en": "English",
-        "ko": "Korean",
+        "kr": "Korean",
         "ja": "Japanese",
         "zh": "Chinese",
         "fr": "French",
@@ -345,6 +345,7 @@ class LegalTaskWorkflow:
         # logger.info("New articles: %d", len(new_articles))
 
         new_articles = all_articles[:1]
+        print('new_articles', new_articles)
 
         # # 3. Title screening — batch titles to agent, get relevant URLs
         # logger.info("Title screening %d articles", len(new_articles))
@@ -364,7 +365,7 @@ class LegalTaskWorkflow:
                 site_id=site.site_id,
             )
         )
-
+        print('article_contents', article_contents)
         # 5. Build crews once, reuse for all articles
         classification_crew = build_classification_crew({})
         summarize_crew = build_summary_crew({})
@@ -375,17 +376,21 @@ class LegalTaskWorkflow:
         for article in article_contents:
             # 5a. Classify — is this article relevant to the project topic?
             logger.info("Classifying: %s", article.title)
+            print('article for classification', article)
             classification = self.run_classification(article, site, classification_crew)
 
-            if not classification["is_relevant"]:
-                logger.info("Irrelevant, skipping: %s", article.url)
-                continue
+            print('classification', classification)
+
+            # if classification["is_relevant"]:
+            #     logger.info("Irrelevant, skipping: %s", article.url)
+            #     continue
 
             # 5b. Summarize (1 agent call) → summary, analysis, recommendation
             # 5c. Translate (1 agent call per language) → en, ko, ...
             summary_translation = self.run_summary_translation(
                 article, site, summarize_crew, translate_crew
             )
+            print('summary_translation', summary_translation)
 
             item: dict[str, Any] = {
                 "project_name": "legal_task",
