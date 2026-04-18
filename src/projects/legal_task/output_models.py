@@ -35,18 +35,16 @@ class ReportingOutput(BaseModel):
     )
 
 
-class TranslationItem(BaseModel):
+class SummaryOutput(BaseModel):
+    title: str = Field(description="Article title.")
+    summary: str = Field(description="Concise summary of the article (3-5 sentences).")
+    analysis: str = Field(description="Analysis of implications.")
+    recommendation: str = Field(description="Recommended action.")
+
+
+class TranslationOutput(BaseModel):
+    title: str = Field(description="Translated title.")
     summary: str = Field(description="Translated summary.")
     content: str = Field(description="Translated article content.")
     analysis: str = Field(description="Translated analysis.")
     recommendation: str = Field(description="Translated recommendation.")
-
-
-class SummaryTranslationOutput(BaseModel):
-    summary: str = Field(description="Concise summary of the legal article in source language.")
-    analysis: str = Field(description="Analysis of the article in source language.")
-    recommendation: str = Field(description="Recommended action in source language.")
-    translations: dict[str, TranslationItem] = Field(
-        default_factory=dict,
-        description="Translations keyed by language code. Each contains summary, content, analysis, recommendation.",
-    )

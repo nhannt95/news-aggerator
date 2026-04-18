@@ -1,8 +1,9 @@
 from src.projects.legal_task.output_models import (
     ClassificationOutput,
     ReportingOutput,
-    SummaryTranslationOutput,
+    SummaryOutput,
     TitleScreeningOutput,
+    TranslationOutput,
 )
 
 
@@ -10,5 +11,6 @@ LEGAL_TASK_OUTPUT_MODELS = {
     "screen_titles": TitleScreeningOutput,
     "classify_articles": ClassificationOutput,
     "write_report": ReportingOutput,
-    "translate_summary": SummaryTranslationOutput,
+    "summarize_article": SummaryOutput,
+    "translate_summary": TranslationOutput,
 }

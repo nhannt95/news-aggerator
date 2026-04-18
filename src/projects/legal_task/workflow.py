@@ -181,6 +181,47 @@ class LegalTaskWorkflow:
         return LegalTaskWorkflow.LANG_NAMES.get(code, code)
 
     @staticmethod
+    def _parse_crew_result(raw: Any) -> dict[str, Any]:
+        """Parse crew result — try json_dict, pydantic, then raw text as JSON."""
+        import json as _json
+
+        # Method 1: CrewAI structured output
+        if hasattr(raw, "json_dict") and raw.json_dict:
+            logger.info("[PARSE] Got json_dict")
+            return raw.json_dict
+        if hasattr(raw, "pydantic") and raw.pydantic:
+            logger.info("[PARSE] Got pydantic")
+            return raw.pydantic.model_dump()
+
+        # Method 2: Try parse raw text as JSON
+        raw_text = str(raw).strip()
+        logger.info("[PARSE] Raw text (%d chars): %s", len(raw_text), raw_text[:200])
+
+        # Find JSON in text (may be wrapped in markdown ```json ... ```)
+        json_match = None
+        if "```json" in raw_text:
+            start = raw_text.index("```json") + 7
+            end = raw_text.index("```", start)
+            json_match = raw_text[start:end].strip()
+        elif "```" in raw_text:
+            start = raw_text.index("```") + 3
+            end = raw_text.index("```", start)
+            json_match = raw_text[start:end].strip()
+        elif raw_text.startswith("{"):
+            json_match = raw_text
+
+        if json_match:
+            try:
+                parsed = _json.loads(json_match)
+                if isinstance(parsed, dict):
+                    logger.info("[PARSE] Parsed JSON keys: %s", list(parsed.keys()))
+                    return parsed
+            except _json.JSONDecodeError:
+                logger.warning("[PARSE] JSON decode failed")
+
+        return {}
+
+    @staticmethod
     def _run_summarize(article: ArticleContent, source_lang: str, crew: object) -> dict[str, str]:
         """Step 1: Summarize + analyze in source language."""
         content = (article.content_markdown or "")[:3000]
@@ -198,16 +239,21 @@ class LegalTaskWorkflow:
                 f"- recommendation: recommended action in {lang_name}"
             ),
         }
+        logger.info("[SUMMARIZE] Input content length: %d chars", len(content))
         raw = crew.kickoff(inputs=inputs)
-        print('summarize raw', raw)
-        result = LegalTaskWorkflow._result_to_dict(raw)
-        return {
+        result = LegalTaskWorkflow._parse_crew_result(raw)
+        logger.info("[SUMMARIZE] Result keys: %s", list(result.keys()))
+
+        summary_data = {
             "title": result.get("title") or article.title or "",
             "summary": result.get("summary", ""),
             "content": article.content_markdown,
             "analysis": result.get("analysis", ""),
             "recommendation": result.get("recommendation", ""),
         }
+        logger.info("[SUMMARIZE] summary=%d chars, analysis=%d chars",
+                     len(summary_data["summary"]), len(summary_data["analysis"]))
+        return summary_data
 
     @staticmethod
     def _run_translate(source_data: dict[str, str], source_lang: str, target_lang: str, crew: object) -> dict[str, str]:
@@ -229,15 +275,24 @@ class LegalTaskWorkflow:
                 f"All values must be in {target_name}."
             ),
         }
+        logger.info("[TRANSLATE→%s] Input: title=%d, summary=%d, content=%d, analysis=%d",
+                     target_lang, len(inputs["title"]), len(inputs["summary"]),
+                     len(inputs["content"]), len(inputs["analysis"]))
         raw = crew.kickoff(inputs=inputs)
-        result = LegalTaskWorkflow._result_to_dict(raw)
-        return {
+        result = LegalTaskWorkflow._parse_crew_result(raw)
+        logger.info("[TRANSLATE→%s] Result keys: %s", target_lang, list(result.keys()))
+
+        translated = {
             "title": result.get("title", ""),
             "summary": result.get("summary", ""),
             "content": result.get("content", ""),
             "analysis": result.get("analysis", ""),
             "recommendation": result.get("recommendation", ""),
         }
+        logger.info("[TRANSLATE→%s] title=%d, summary=%d, content=%d",
+                     target_lang, len(translated["title"]),
+                     len(translated["summary"]), len(translated["content"]))
+        return translated
 
     @staticmethod
     def run_summary_translation(
