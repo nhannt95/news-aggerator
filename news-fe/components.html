@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <title>UI Components — Synthetica</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+    <link rel="stylesheet" href="css/components.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--ui-bg-base);
+            color: var(--ui-text);
+            min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
+        }
+        .demo-section {
+            padding: 24px;
+            border-radius: 16px;
+            background: var(--ui-bg-2);
+            border: 1px solid var(--ui-border);
+        }
+        .demo-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--ui-text-muted);
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+        code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            background: var(--ui-bg-solid);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--ui-accent);
+        }
+        pre {
+            background: var(--ui-bg-solid);
+            border: 1px solid var(--ui-border);
+            border-radius: 10px;
+            padding: 14px 16px;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            line-height: 1.6;
+            color: var(--ui-text-muted);
+        }
+        pre .k { color: #ac8aff; }
+        pre .s { color: #6fcf97; }
+        pre .f { color: #85adff; }
+    </style>
+</head>
+<body>
+
+<div class="max-w-6xl mx-auto p-10">
+    <div class="mb-12">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs uppercase tracking-wider font-semibold mb-4">
+            <span class="material-icons-outlined" style="font-size: 14px;">auto_awesome</span>
+            Component Library
+        </div>
+        <div class="flex items-start justify-between mb-3">
+            <h1 class="font-['Manrope'] font-extrabold text-5xl tracking-tight">Synthetica UI</h1>
+            <div id="themeToggle"></div>
+        </div>
+        <p style="color: var(--ui-text-muted);">Reusable components — import <code>css/components.css</code> + <code>js/components.js</code>, then call <code>UI.*</code></p>
+    </div>
+
+    <!-- LOADING -->
+    <section class="mb-10">
+        <h2 class="font-['Manrope'] font-bold text-2xl mb-5">Loading</h2>
+        <div class="grid grid-cols-3 gap-4 mb-4">
+            <div class="demo-section">
+                <div class="demo-label">Inline · Small</div>
+                <div id="inlineSm"></div>
+            </div>
+            <div class="demo-section">
+                <div class="demo-label">Inline · Medium</div>
+                <div id="inlineMd"></div>
+            </div>
+            <div class="demo-section">
+                <div class="demo-label">Inline · Large (default)</div>
+                <div id="inlineLg"></div>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap gap-3 mb-4">
+            <button onclick="demoLoading()" class="ui-btn ui-btn-solid">Show full-screen loading</button>
+            <button onclick="demoLoadingCustom()" class="ui-btn ui-btn-outline">Custom color (pink→green)</button>
+        </div>
+
+<pre><span class="k">UI</span>.loading.<span class="f">show</span>({ <span class="k">message</span>: <span class="s">'Crawling articles...'</span> });
+<span class="k">UI</span>.loading.<span class="f">hide</span>();
+
+<span class="c">// Custom gradient colors</span>
+<span class="k">UI</span>.loading.<span class="f">show</span>({ <span class="k">from</span>: <span class="s">'#ff6ec7'</span>, <span class="k">to</span>: <span class="s">'#6fcf97'</span> });
+
+<span class="c">// Inline (returns element)</span>
+<span class="k">const</span> spinner = <span class="k">UI</span>.loading.<span class="f">inline</span>({ <span class="k">size</span>: <span class="s">'sm'</span>, <span class="k">message</span>: <span class="s">'Loading'</span> });
+container.<span class="f">appendChild</span>(spinner);</pre>
+    </section>
+
+    <!-- BUTTONS -->
+    <section class="mb-10">
+        <h2 class="font-['Manrope'] font-bold text-2xl mb-5">Buttons</h2>
+        <div class="demo-section mb-4">
+            <div class="demo-label">Variants × Colors</div>
+            <div id="btnGrid" class="space-y-3"></div>
+        </div>
+        <div class="demo-section mb-4">
+            <div class="demo-label">Sizes</div>
+            <div id="btnSizes" class="flex items-center gap-3"></div>
+        </div>
+
+<pre><span class="k">const</span> btn = <span class="k">UI</span>.<span class="f">button</span>({
+    <span class="k">label</span>: <span class="s">'Save Article'</span>,
+    <span class="k">icon</span>: <span class="s">'check'</span>,
+    <span class="k">color</span>: <span class="s">'primary'</span>,      <span class="c">// or 'tertiary', 'success', 'warning', 'error', 'neutral', '#ff6ec7'</span>
+    <span class="k">variant</span>: <span class="s">'solid'</span>,    <span class="c">// 'solid' | 'outline' | 'ghost' | 'soft'</span>
+    <span class="k">size</span>: <span class="s">'md'</span>,         <span class="c">// 'sm' | 'md' | 'lg'</span>
+    <span class="k">onClick</span>: () => {},
+});
+container.<span class="f">appendChild</span>(btn);</pre>
+    </section>
+
+    <!-- CARDS -->
+    <section class="mb-10">
+        <h2 class="font-['Manrope'] font-bold text-2xl mb-5">Cards</h2>
+        <div class="grid grid-cols-3 gap-4 mb-4" id="cardGrid"></div>
+
+<pre>container.<span class="f">appendChild</span>(<span class="k">UI</span>.<span class="f">card</span>({
+    <span class="k">title</span>: <span class="s">'Relevant Articles'</span>,
+    <span class="k">subtitle</span>: <span class="s">'LAST 24H'</span>,
+    <span class="k">icon</span>: <span class="s">'auto_awesome'</span>,
+    <span class="k">content</span>: <span class="s">'&lt;div class="text-3xl font-bold"&gt;42&lt;/div&gt;'</span>,
+    <span class="k">footer</span>: <span class="s">'&lt;button&gt;View all&lt;/button&gt;'</span>,
+    <span class="k">color</span>: <span class="s">'primary'</span>,    <span class="c">// 'primary'|'tertiary'|'success'|'warning'|'error' or hex</span>
+    <span class="k">hover</span>: <span class="k">true</span>,
+    <span class="k">glow</span>: <span class="k">true</span>,
+}));</pre>
+    </section>
+
+    <!-- ALERTS -->
+    <section class="mb-10">
+        <h2 class="font-['Manrope'] font-bold text-2xl mb-5">Alerts (Toast)</h2>
+        <div class="demo-section mb-4">
+            <div class="demo-label">Show alerts (top-right)</div>
+            <div class="flex flex-wrap gap-3">
+                <button onclick="UI.alert.success({ title: 'Saved successfully', message: 'Article saved to database.' })" class="ui-btn ui-btn-soft" style="--ui-btn-color: #6fcf97; --ui-btn-bg: rgba(111,207,151,0.12);">
+                    <span class="material-icons-outlined" style="font-size:16px;">check_circle</span>Success
+                </button>
+                <button onclick="UI.alert.error({ title: 'Crawl failed', message: 'Connection timeout after 30s.' })" class="ui-btn ui-btn-soft" style="--ui-btn-color: #ff716c; --ui-btn-bg: rgba(255,113,108,0.12);">
+                    <span class="material-icons-outlined" style="font-size:16px;">error</span>Error
+                </button>
+                <button onclick="UI.alert.warning({ title: 'Rate limit', message: 'OpenRouter quota 80% used.' })" class="ui-btn ui-btn-soft" style="--ui-btn-color: #f2c94c; --ui-btn-bg: rgba(242,201,76,0.12);">
+                    <span class="material-icons-outlined" style="font-size:16px;">warning</span>Warning
+                </button>
+                <button onclick="UI.alert.info({ title: 'Scheduler reloaded', message: '3 jobs active.' })" class="ui-btn ui-btn-soft">
+                    <span class="material-icons-outlined" style="font-size:16px;">info</span>Info
+                </button>
+                <button onclick="UI.alert({ type: 'info', title: 'Persistent', message: 'Close manually.', duration: 0 })" class="ui-btn ui-btn-ghost">
+                    Persistent
+                </button>
+            </div>
+        </div>
+
+<pre><span class="k">UI</span>.alert({
+    <span class="k">type</span>: <span class="s">'success'</span>,    <span class="c">// 'success' | 'error' | 'warning' | 'info'</span>
+    <span class="k">title</span>: <span class="s">'Saved!'</span>,
+    <span class="k">message</span>: <span class="s">'Your article was saved.'</span>,
+    <span class="k">duration</span>: <span class="s">5000</span>,       <span class="c">// ms (0 = persistent)</span>
+    <span class="k">closable</span>: <span class="k">true</span>,
+    <span class="k">icon</span>: <span class="s">'check_circle'</span>, <span class="c">// optional custom</span>
+});
+
+<span class="c">// Shortcuts</span>
+<span class="k">UI</span>.alert.<span class="f">success</span>({ title, message });
+<span class="k">UI</span>.alert.<span class="f">error</span>({ title, message });
+<span class="k">UI</span>.alert.<span class="f">warning</span>({ title, message });
+<span class="k">UI</span>.alert.<span class="f">info</span>({ title, message });</pre>
+    </section>
+
+    <!-- SPINNER VARIANTS -->
+    <section class="mb-10">
+        <h2 class="font-['Manrope'] font-bold text-2xl mb-5">Spinner Variants</h2>
+        <div class="grid grid-cols-5 gap-4 mb-4">
+            <div class="demo-section text-center">
+                <div class="demo-label">Ring</div>
+                <div id="spRing" class="flex justify-center"></div>
+            </div>
+            <div class="demo-section text-center">
+                <div class="demo-label">Dots</div>
+                <div id="spDots" class="flex justify-center items-center" style="height:36px;"></div>
+            </div>
+            <div class="demo-section text-center">
+                <div class="demo-label">Bars</div>
+                <div id="spBars" class="flex justify-center items-center" style="height:36px;"></div>
+            </div>
+            <div class="demo-section text-center">
+                <div class="demo-label">Orbit</div>
+                <div id="spOrbit" class="flex justify-center items-center" style="height:48px;"></div>
+            </div>
+            <div class="demo-section text-center">
+                <div class="demo-label">Gradient (Uiverse)</div>
+                <div id="spGradient" class="flex justify-center"></div>
+            </div>
+        </div>
+
+<pre><span class="k">UI</span>.<span class="f">spinner</span>({ <span class="k">variant</span>: <span class="s">'ring'</span>, <span class="k">size</span>: <span class="s">'md'</span>, <span class="k">color</span>: <span class="s">'#85adff'</span> });
+<span class="k">UI</span>.<span class="f">spinner</span>({ <span class="k">variant</span>: <span class="s">'dots'</span>, <span class="k">color</span>: <span class="s">'#ac8aff'</span> });
+<span class="k">UI</span>.<span class="f">spinner</span>({ <span class="k">variant</span>: <span class="s">'bars'</span>, <span class="k">size</span>: <span class="s">40</span>, <span class="k">color</span>: <span class="s">'#6fcf97'</span> });
+<span class="k">UI</span>.<span class="f">spinner</span>({ <span class="k">variant</span>: <span class="s">'orbit'</span>, <span class="k">from</span>: <span class="s">'#ff6ec7'</span>, <span class="k">to</span>: <span class="s">'#6fcf97'</span> });
+<span class="k">UI</span>.<span class="f">spinner</span>({ <span class="k">variant</span>: <span class="s">'gradient'</span>, <span class="k">size</span>: <span class="s">'sm'</span> });
+
+<span class="c">// variant: 'ring' | 'dots' | 'bars' | 'orbit' | 'gradient'</span>
+<span class="c">// size: 'sm' | 'md' | 'lg' or number (px)</span></pre>
+    </section>
+
+    <!-- TOGGLE -->
+    <section class="mb-10">
+        <h2 class="font-['Manrope'] font-bold text-2xl mb-5">Toggle / Switch</h2>
+        <div class="demo-section mb-4">
+            <div class="demo-label">Sizes & colors</div>
+            <div id="togglesDemo" class="flex flex-wrap items-center gap-6"></div>
+        </div>
+
+<pre><span class="k">const</span> tgl = <span class="k">UI</span>.<span class="f">toggle</span>({
+    <span class="k">label</span>: <span class="s">'Enable notifications'</span>,
+    <span class="k">checked</span>: <span class="k">true</span>,
+    <span class="k">size</span>: <span class="s">'md'</span>,           <span class="c">// 'sm' | 'md' | 'lg'</span>
+    <span class="k">color</span>: <span class="s">'primary'</span>,     <span class="c">// or 'tertiary','success','warning','error' or hex</span>
+    <span class="k">labelLeft</span>: <span class="k">false</span>,
+    <span class="k">onChange</span>: (checked) => <span class="k">console</span>.<span class="f">log</span>(checked),
+});
+<span class="c">// tgl.getChecked() / tgl.setChecked(bool)</span></pre>
+    </section>
+
+    <!-- DROPDOWN -->
+    <section class="mb-10">
+        <h2 class="font-['Manrope'] font-bold text-2xl mb-5">Dropdown Menu</h2>
+        <div class="demo-section mb-4">
+            <div class="demo-label">Dropdowns</div>
+            <div id="dropdownDemo" class="flex flex-wrap items-start gap-4"></div>
+        </div>
+
+<pre><span class="k">UI</span>.<span class="f">dropdown</span>({
+    <span class="k">label</span>: <span class="s">'Actions'</span>,
+    <span class="k">icon</span>: <span class="s">'more_horiz'</span>,
+    <span class="k">align</span>: <span class="s">'left'</span>,        <span class="c">// 'left' | 'right'</span>
+    <span class="k">items</span>: [
+        { <span class="k">header</span>: <span class="s">'Article'</span> },
+        { <span class="k">label</span>: <span class="s">'Edit'</span>,   <span class="k">icon</span>: <span class="s">'edit'</span>,    <span class="k">value</span>: <span class="s">'edit'</span>,   <span class="k">onClick</span>: (v) => {} },
+        { <span class="k">label</span>: <span class="s">'Share'</span>,  <span class="k">icon</span>: <span class="s">'share'</span>,   <span class="k">value</span>: <span class="s">'share'</span> },
+        { <span class="k">divider</span>: <span class="k">true</span> },
+        { <span class="k">label</span>: <span class="s">'Delete'</span>, <span class="k">icon</span>: <span class="s">'delete'</span>,  <span class="k">danger</span>: <span class="k">true</span> },
+    ],
+});</pre>
+    </section>
+
+    <!-- DATETIME -->
+    <section class="mb-10">
+        <h2 class="font-['Manrope'] font-bold text-2xl mb-5">Datetime Picker</h2>
+        <div class="demo-section mb-4">
+            <div class="demo-label">Pickers</div>
+            <div id="datetimeDemo" class="flex flex-wrap items-start gap-4"></div>
+        </div>
+
+<pre><span class="k">const</span> picker = <span class="k">UI</span>.<span class="f">datetime</span>({
+    <span class="k">value</span>: <span class="k">new</span> <span class="f">Date</span>(),
+    <span class="k">showTime</span>: <span class="k">true</span>,
+    <span class="k">placeholder</span>: <span class="s">'Select date &amp; time'</span>,
+    <span class="k">align</span>: <span class="s">'left'</span>,
+    <span class="k">min</span>: <span class="k">new</span> <span class="f">Date</span>(<span class="s">'2026-01-01'</span>),
+    <span class="k">max</span>: <span class="k">new</span> <span class="f">Date</span>(<span class="s">'2026-12-31'</span>),
+    <span class="k">onChange</span>: (d) => <span class="k">console</span>.<span class="f">log</span>(d),
+});
+<span class="c">// picker.getValue() / picker.setValue(date)</span></pre>
+    </section>
+
+    <!-- GRID -->
+    <section class="mb-10">
+        <h2 class="font-['Manrope'] font-bold text-2xl mb-5">Data Grid</h2>
+        <div id="gridDemo" class="mb-4"></div>
+        <div class="flex gap-2 mb-4">
+            <button onclick="gridEl.setLoading(true); setTimeout(() => gridEl.setLoading(false), 1500)" class="ui-btn ui-btn-soft">Show loading</button>
+            <button onclick="gridEl.clearSelection()" class="ui-btn ui-btn-soft">Clear selection</button>
+            <button onclick="UI.alert.info({ title: 'Selected', message: gridEl.getSelected().length + ' rows' })" class="ui-btn ui-btn-outline">Get selected</button>
+        </div>
+
+<pre><span class="k">const</span> grid = <span class="k">UI</span>.<span class="f">grid</span>({
+    <span class="k">data</span>: articles,                  <span class="c">// array of objects (each needs unique `id`)</span>
+    <span class="k">columns</span>: [
+        { <span class="k">key</span>: <span class="s">'id'</span>,     <span class="k">label</span>: <span class="s">'#'</span>,       <span class="k">width</span>: <span class="s">60</span> },
+        { <span class="k">key</span>: <span class="s">'title'</span>,  <span class="k">label</span>: <span class="s">'Title'</span>,   <span class="k">sortable</span>: <span class="k">true</span> },
+        { <span class="k">key</span>: <span class="s">'score'</span>,  <span class="k">label</span>: <span class="s">'Score'</span>,   <span class="k">align</span>: <span class="s">'right'</span>,
+          <span class="k">render</span>: (v) => <span class="s">`&lt;strong class="text-primary"&gt;${v}%&lt;/strong&gt;`</span> },
+        { <span class="k">key</span>: <span class="s">'actions'</span>, <span class="k">label</span>: <span class="s">''</span>,        <span class="k">sortable</span>: <span class="k">false</span>,
+          <span class="k">render</span>: (_, row) => <span class="k">UI</span>.<span class="f">button</span>({ <span class="k">label</span>: <span class="s">'Edit'</span>, <span class="k">variant</span>: <span class="s">'soft'</span>, <span class="k">size</span>: <span class="s">'sm'</span> }) },
+    ],
+    <span class="k">pageSize</span>: <span class="s">5</span>,
+    <span class="k">pageSizeOptions</span>: [<span class="s">5</span>, <span class="s">10</span>, <span class="s">25</span>],
+    <span class="k">searchable</span>: <span class="k">true</span>,
+    <span class="k">selectable</span>: <span class="k">true</span>,
+    <span class="k">onRowClick</span>: (row) => <span class="k">UI</span>.alert.<span class="f">info</span>({ <span class="k">title</span>: row.title }),
+    <span class="k">onSelectionChange</span>: (rows) => <span class="k">console</span>.<span class="f">log</span>(rows.length),
+    <span class="k">toolbar</span>: <span class="s">'&lt;button&gt;Add&lt;/button&gt;'</span>, <span class="c">// custom right-side content</span>
+});
+
+<span class="c">// Methods</span>
+grid.<span class="f">setData</span>(newArray);
+grid.<span class="f">getSelected</span>();       <span class="c">// Array of selected rows</span>
+grid.<span class="f">setLoading</span>(<span class="k">true</span>);
+grid.<span class="f">setSort</span>(<span class="s">'score'</span>, <span class="s">'desc'</span>);
+grid.<span class="f">setSearch</span>(<span class="s">'legal'</span>);
+grid.<span class="f">goToPage</span>(<span class="s">2</span>);
+grid.<span class="f">refresh</span>();</pre>
+    </section>
+
+    <!-- DIALOG -->
+    <section class="mb-10">
+        <h2 class="font-['Manrope'] font-bold text-2xl mb-5">Dialog</h2>
+        <div class="demo-section mb-4">
+            <div class="demo-label">Open dialog</div>
+            <div class="flex flex-wrap gap-3">
+                <button onclick="demoDialogConfirm()" class="ui-btn ui-btn-solid">Confirm dialog</button>
+                <button onclick="demoDialogInfo()" class="ui-btn ui-btn-outline">Info dialog</button>
+                <button onclick="demoDialogWarning()" class="ui-btn ui-btn-soft" style="--ui-btn-color: #f2c94c; --ui-btn-bg: rgba(242,201,76,0.12);">Warning dialog</button>
+                <button onclick="demoDialogError()" class="ui-btn ui-btn-soft" style="--ui-btn-color: #ff716c; --ui-btn-bg: rgba(255,113,108,0.12);">Delete confirmation</button>
+                <button onclick="demoDialogForm()" class="ui-btn ui-btn-ghost">Custom body (form)</button>
+            </div>
+        </div>
+
+<pre><span class="k">UI</span>.<span class="f">dialog</span>({
+    <span class="k">type</span>: <span class="s">'warning'</span>,    <span class="c">// 'info' | 'success' | 'error' | 'warning' | 'confirm'</span>
+    <span class="k">title</span>: <span class="s">'Delete project?'</span>,
+    <span class="k">message</span>: <span class="s">'This will remove all agents and tasks.'</span>,
+    <span class="k">content</span>: customElement,  <span class="c">// optional custom HTML/element</span>
+    <span class="k">buttons</span>: [
+        { <span class="k">label</span>: <span class="s">'Cancel'</span>, <span class="k">variant</span>: <span class="s">'ghost'</span>, <span class="k">color</span>: <span class="s">'neutral'</span> },
+        { <span class="k">label</span>: <span class="s">'Delete'</span>, <span class="k">color</span>: <span class="s">'error'</span>, <span class="k">onClick</span>: () => {} },
+    ],
+    <span class="k">closable</span>: <span class="k">true</span>,
+});
+
+<span class="c">// Promise-based confirm</span>
+<span class="k">const</span> ok = <span class="k">await</span> <span class="k">UI</span>.<span class="f">confirm</span>({
+    <span class="k">title</span>: <span class="s">'Are you sure?'</span>,
+    <span class="k">message</span>: <span class="s">'This cannot be undone.'</span>,
+    <span class="k">color</span>: <span class="s">'error'</span>,
+});</pre>
+    </section>
+</div>
+
+<script src="js/components.js"></script>
+<script>
+    // ===== Theme init =====
+    UI.theme.init('dark');
+    document.getElementById('themeToggle').appendChild(UI.toggle({
+        label: UI.theme.get() === 'light' ? '☀ Light' : '☾ Dark',
+        checked: UI.theme.get() === 'dark',
+        color: 'tertiary',
+        onChange: (checked) => {
+            const mode = checked ? 'dark' : 'light';
+            UI.theme.set(mode);
+            UI.alert.info({ title: `Switched to ${mode} mode`, duration: 1500 });
+            location.reload();  // simplest way to refresh all rendered demo content
+        },
+    }));
+
+    // ===== Loading demos =====
+    document.getElementById('inlineSm').appendChild(UI.loading.inline({ size: 'sm' }));
+    document.getElementById('inlineMd').appendChild(UI.loading.inline({ size: 'md', message: 'Loading' }));
+    document.getElementById('inlineLg').appendChild(UI.loading.inline({ size: 'lg', message: 'Processing...' }));
+
+    function demoLoading() {
+        UI.loading.show({ message: 'Crawling articles...' });
+        setTimeout(() => UI.loading.hide(), 2000);
+    }
+    function demoLoadingCustom() {
+        UI.loading.show({ from: '#ff6ec7', to: '#6fcf97', message: 'Custom gradient' });
+        setTimeout(() => UI.loading.hide(), 2000);
+    }
+
+    // ===== Buttons demo =====
+    const btnGrid = document.getElementById('btnGrid');
+    const variants = ['solid', 'outline', 'ghost', 'soft'];
+    const colors = ['primary', 'tertiary', 'success', 'warning', 'error'];
+    variants.forEach(v => {
+        const row = document.createElement('div');
+        row.className = 'flex flex-wrap items-center gap-2';
+        const label = document.createElement('span');
+        label.className = 'text-xs text-on-surface-muted uppercase tracking-wider w-16';
+        label.textContent = v;
+        row.appendChild(label);
+        colors.forEach(c => {
+            row.appendChild(UI.button({
+                label: c.charAt(0).toUpperCase() + c.slice(1),
+                icon: v === 'solid' ? 'bolt' : undefined,
+                color: c, variant: v,
+                onClick: () => UI.alert.info({ message: `Clicked ${v} / ${c}` }),
+            }));
+        });
+        btnGrid.appendChild(row);
+    });
+
+    const btnSizes = document.getElementById('btnSizes');
+    ['sm', 'md', 'lg'].forEach(size => {
+        btnSizes.appendChild(UI.button({ label: size.toUpperCase(), icon: 'add', size }));
+    });
+    btnSizes.appendChild(UI.button({ label: 'With right icon', iconRight: 'arrow_forward', variant: 'outline' }));
+    btnSizes.appendChild(UI.button({ label: 'Disabled', variant: 'solid', disabled: true }));
+
+    // ===== Cards demo =====
+    const cardGrid = document.getElementById('cardGrid');
+    cardGrid.appendChild(UI.card({
+        title: 'Total Articles', subtitle: 'LAST 24H', icon: 'feed',
+        content: '<div class="text-4xl font-["Manrope"] font-extrabold">128</div><div class="text-xs text-on-surface-muted mt-1">+12% vs yesterday</div>',
+        color: 'primary',
+    }));
+    cardGrid.appendChild(UI.card({
+        title: 'Relevant', subtitle: 'AI classified', icon: 'auto_awesome',
+        content: '<div class="text-4xl font-["Manrope"] font-extrabold">78</div><div class="text-xs text-on-surface-muted mt-1">61% of total</div>',
+        color: 'tertiary',
+    }));
+    cardGrid.appendChild(UI.card({
+        title: 'Pending Review', subtitle: 'ADMIN APPROVAL', icon: 'pending',
+        content: '<div class="text-4xl font-["Manrope"] font-extrabold">12</div>',
+        footer: '<span class="text-xs text-on-surface-muted">Requires action</span><button class="ui-btn ui-btn-soft ui-btn-sm" style="--ui-btn-color: #f2c94c; --ui-btn-bg: rgba(242,201,76,0.12);">Review</button>',
+        color: 'warning',
+    }));
+
+    // ===== Dialog demos =====
+    // ===== Spinner variants =====
+    document.getElementById('spRing').appendChild(UI.spinner({ variant: 'ring', size: 36, color: '#85adff' }));
+    document.getElementById('spDots').appendChild(UI.spinner({ variant: 'dots', color: '#ac8aff' }));
+    document.getElementById('spBars').appendChild(UI.spinner({ variant: 'bars', size: 28, color: '#6fcf97' }));
+    document.getElementById('spOrbit').appendChild(UI.spinner({ variant: 'orbit', size: 40, from: '#ff6ec7', to: '#6fcf97' }));
+    document.getElementById('spGradient').appendChild(UI.spinner({ variant: 'gradient', size: 'sm' }));
+
+    // ===== Toggles =====
+    const tg = document.getElementById('togglesDemo');
+    tg.appendChild(UI.toggle({ label: 'Primary (default)', checked: true, color: 'primary', onChange: (v) => UI.alert.info({ message: 'Toggle: ' + v, duration: 1500 }) }));
+    tg.appendChild(UI.toggle({ label: 'Tertiary', checked: true, color: 'tertiary' }));
+    tg.appendChild(UI.toggle({ label: 'Success', checked: true, color: 'success' }));
+    tg.appendChild(UI.toggle({ label: 'Warning', checked: false, color: 'warning' }));
+    tg.appendChild(UI.toggle({ label: 'Error', checked: false, color: 'error' }));
+    tg.appendChild(UI.toggle({ label: 'Disabled', checked: true, disabled: true }));
+
+    const tgSizes = document.createElement('div');
+    tgSizes.className = 'w-full flex items-center gap-6 mt-4 pt-4 border-t border-outline/20';
+    tgSizes.appendChild(UI.toggle({ label: 'Small', size: 'sm', checked: true }));
+    tgSizes.appendChild(UI.toggle({ label: 'Medium', size: 'md', checked: true }));
+    tgSizes.appendChild(UI.toggle({ label: 'Large', size: 'lg', checked: true }));
+    tg.appendChild(tgSizes);
+
+    // ===== Dropdowns =====
+    const dd = document.getElementById('dropdownDemo');
+    dd.appendChild(UI.dropdown({
+        label: 'Sort by',
+        icon: 'sort',
+        items: [
+            { header: 'Sort order' },
+            { label: 'Newest first', icon: 'arrow_downward', active: true, onClick: () => UI.alert.info({ message: 'Newest first', duration: 1500 }) },
+            { label: 'Oldest first', icon: 'arrow_upward' },
+            { label: 'Relevance', icon: 'auto_awesome' },
+        ],
+    }));
+    dd.appendChild(UI.dropdown({
+        label: 'Actions',
+        icon: 'more_horiz',
+        items: [
+            { header: 'Article' },
+            { label: 'Edit', icon: 'edit', onClick: () => UI.alert.success({ title: 'Edit clicked' }) },
+            { label: 'Share', icon: 'share' },
+            { label: 'Duplicate', icon: 'content_copy' },
+            { divider: true },
+            { label: 'Delete', icon: 'delete', danger: true, onClick: () => UI.alert.error({ title: 'Would delete' }) },
+        ],
+    }));
+    dd.appendChild(UI.dropdown({
+        label: 'Filter',
+        icon: 'filter_list',
+        align: 'right',
+        items: [
+            { label: 'All projects', icon: 'folder_open' },
+            { label: 'Legal', icon: 'gavel' },
+            { label: 'ER', icon: 'bolt' },
+        ],
+    }));
+
+    // ===== Grid =====
+    const sampleData = [
+        { id: 1, title: 'Quốc hội thông qua Luật Đất đai sửa đổi', source: 'Thanh Niên', project: 'legal_task', score: 92, status: 'relevant' },
+        { id: 2, title: 'Chính phủ ban hành nghị định mới về thuế', source: 'Dân Trí',   project: 'legal_task', score: 85, status: 'relevant' },
+        { id: 3, title: 'Giá vàng tăng mạnh',                       source: 'Thanh Niên', project: 'legal_task', score: 20, status: 'irrelevant' },
+        { id: 4, title: 'Cháy lớn tại khu công nghiệp Tân Bình',    source: 'VnExpress',  project: 'er_task',    score: 95, status: 'relevant' },
+        { id: 5, title: 'Dự báo thời tiết tuần tới',                source: 'VnExpress',  project: 'er_task',    score: 30, status: 'irrelevant' },
+        { id: 6, title: 'Bộ Tư pháp công bố quy định mới về giao dịch điện tử', source: 'Dân Trí', project: 'legal_task', score: 88, status: 'relevant' },
+        { id: 7, title: 'Bộ Công an siết chặt quản lý thông tin cá nhân', source: 'Thanh Niên', project: 'legal_task', score: 78, status: 'relevant' },
+        { id: 8, title: 'Nghị quyết mới về đầu tư nước ngoài', source: 'Dân Trí', project: 'legal_task', score: 82, status: 'relevant' },
+        { id: 9, title: 'Tòa án nhân dân tối cao hướng dẫn xét xử', source: 'VnExpress', project: 'legal_task', score: 91, status: 'relevant' },
+        { id: 10, title: 'Doanh nghiệp phản đối mức phạt mới', source: 'Thanh Niên', project: 'legal_task', score: 65, status: 'irrelevant' },
+        { id: 11, title: 'Quy định mới về bảo vệ người tiêu dùng', source: 'Dân Trí', project: 'legal_task', score: 73, status: 'relevant' },
+        { id: 12, title: 'Thủ tướng chỉ đạo rà soát thủ tục hành chính', source: 'VnExpress', project: 'legal_task', score: 68, status: 'irrelevant' },
+    ];
+
+    const statusBadge = (s) => s === 'relevant'
+        ? '<span class="badge" style="background:rgba(133,173,255,0.12);color:#85adff;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;">● Relevant</span>'
+        : '<span class="badge" style="background:rgba(75,90,125,0.3);color:#7b86a8;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;">○ Irrelevant</span>';
+
+    const scoreBar = (v) => `
+        <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end;">
+            <div style="width:80px;height:4px;background:#192540;border-radius:4px;overflow:hidden;">
+                <div style="height:100%;width:${v}%;background:linear-gradient(90deg,#85adff,#ac8aff);"></div>
+            </div>
+            <strong style="color:${v >= 70 ? '#85adff' : '#7b86a8'};font-size:12px;">${v}%</strong>
+        </div>`;
+
+    const toolbarRight = document.createElement('div');
+    toolbarRight.className = 'flex items-center gap-2';
+    toolbarRight.appendChild(UI.button({ label: 'Add', icon: 'add', size: 'sm', color: 'primary' }));
+    toolbarRight.appendChild(UI.dropdown({
+        label: 'Filter',
+        icon: 'filter_list',
+        items: [
+            { label: 'All', onClick: () => gridEl.setSearch('') },
+            { label: 'Relevant only', onClick: () => gridEl.setSearch('relevant') },
+            { label: 'Legal only', onClick: () => gridEl.setSearch('legal') },
+        ],
+    }));
+
+    const gridEl = UI.grid({
+        data: sampleData,
+        columns: [
+            { key: 'id',     label: '#',       width: 60, align: 'center' },
+            { key: 'title',  label: 'Title',   sortable: true },
+            { key: 'source', label: 'Source',  width: 120 },
+            { key: 'project', label: 'Project', width: 140,
+              render: (v) => `<code style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#ac8aff;">${v}</code>` },
+            { key: 'status', label: 'Status',  width: 120, render: (v) => statusBadge(v) },
+            { key: 'score',  label: 'Score',   width: 180, align: 'right', render: (v) => scoreBar(v) },
+            { key: 'actions', label: '', sortable: false, width: 100, align: 'right',
+              render: (_, row) => {
+                  const btn = UI.button({ label: 'View', icon: 'visibility', variant: 'soft', size: 'sm',
+                      onClick: (e) => { e.stopPropagation(); UI.alert.info({ title: row.title, duration: 2000 }); }
+                  });
+                  return btn;
+              }
+            },
+        ],
+        pageSize: 5,
+        pageSizeOptions: [5, 10, 25],
+        searchable: true,
+        searchPlaceholder: 'Search articles...',
+        selectable: true,
+        toolbar: toolbarRight,
+        onRowClick: (row) => UI.alert.info({ title: 'Row clicked', message: row.title, duration: 2000 }),
+        onSelectionChange: (rows) => console.log('Selected:', rows.length),
+    });
+    window.gridEl = gridEl;
+    document.getElementById('gridDemo').appendChild(gridEl);
+
+    // ===== Datetime =====
+    const dt = document.getElementById('datetimeDemo');
+    dt.appendChild(UI.datetime({
+        value: new Date(),
+        placeholder: 'Select date & time',
+        onChange: (d) => UI.alert.info({ message: 'Picked: ' + (d ? d.toLocaleString() : '—'), duration: 2000 }),
+    }));
+    dt.appendChild(UI.datetime({
+        showTime: false,
+        placeholder: 'Date only',
+        onChange: (d) => UI.alert.info({ message: 'Date: ' + (d ? d.toLocaleDateString() : '—'), duration: 2000 }),
+    }));
+
+    async function demoDialogConfirm() {
+        const ok = await UI.confirm({
+            title: 'Reload scheduler?',
+            message: 'This will re-fetch all job configs from the database.',
+            confirmLabel: 'Reload',
+        });
+        if (ok) UI.alert.success({ title: 'Reloaded', message: '3 jobs active' });
+    }
+
+    function demoDialogInfo() {
+        UI.dialog({
+            type: 'info',
+            title: 'Scheduler status',
+            message: 'Background scheduler is running.',
+            content: '<div class="space-y-2 text-sm"><div class="flex justify-between"><span class="text-on-surface-muted">Active jobs</span><strong>3</strong></div><div class="flex justify-between"><span class="text-on-surface-muted">Next run</span><strong>In 14 minutes</strong></div><div class="flex justify-between"><span class="text-on-surface-muted">Last run</span><strong>legal_task · 12m ago</strong></div></div>',
+            buttons: [{ label: 'Got it', variant: 'solid' }],
+        });
+    }
+
+    function demoDialogWarning() {
+        UI.dialog({
+            type: 'warning',
+            title: 'Rate limit approaching',
+            message: 'OpenRouter: 840 / 1000 daily requests used.',
+            buttons: [
+                { label: 'Dismiss', variant: 'ghost', color: 'neutral' },
+                { label: 'Upgrade', color: 'warning', icon: 'bolt' },
+            ],
+        });
+    }
+
+    function demoDialogError() {
+        UI.dialog({
+            type: 'error',
+            title: 'Delete "legal_task"?',
+            message: 'This will permanently remove all agents, tasks, crews, and cached data for this project.',
+            buttons: [
+                { label: 'Cancel', variant: 'ghost', color: 'neutral' },
+                { label: 'Delete project', color: 'error', icon: 'delete', onClick: () => UI.alert.error({ title: 'Deleted', message: 'Project removed.' }) },
+            ],
+        });
+    }
+
+    function demoDialogForm() {
+        const form = document.createElement('div');
+        form.className = 'space-y-3';
+        form.innerHTML = `
+            <div>
+                <label class="text-xs uppercase tracking-wider text-on-surface-muted font-semibold">Project Name</label>
+                <input type="text" class="w-full mt-1 bg-[#192540] rounded-lg px-4 py-2 text-sm border border-[#2a3352]" value="new_project">
+            </div>
+            <div>
+                <label class="text-xs uppercase tracking-wider text-on-surface-muted font-semibold">Description</label>
+                <textarea rows="2" class="w-full mt-1 bg-[#192540] rounded-lg px-4 py-2 text-sm border border-[#2a3352]">Monitor news articles for a specific topic.</textarea>
+            </div>`;
+        UI.dialog({
+            type: 'info',
+            title: 'Create new project',
+            icon: 'folder_special',
+            content: form,
+            buttons: [
+                { label: 'Cancel', variant: 'ghost', color: 'neutral' },
+                { label: 'Create', color: 'primary', icon: 'add', onClick: () => UI.alert.success({ title: 'Project created' }) },
+            ],
+        });
+    }
+</script>
+</body>
+</html>

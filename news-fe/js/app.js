@@ -18,10 +18,14 @@ async function navigate() {
 
     const main = path.split('/')[0];
     switch (main) {
-        case 'dashboard': await renderDashboard(); break;
-        case 'project':   await renderProject(params.get('name'), params.get('tab') || 'agents'); break;
-        case 'articles':  await renderArticles(); break;
-        default:          await renderDashboard();
+        case 'dashboard':          await renderDashboard(); break;
+        case 'project':            await renderProject(params.get('name'), params.get('tab') || 'agents'); break;
+        case 'admin-general':      renderAdminGeneral(); break;
+        case 'admin-users':        renderAdminUsers(); break;
+        case 'admin-llm':          renderAdminLlm(); break;
+        case 'admin-integrations': renderAdminIntegrations(); break;
+        case 'admin-audit':        renderAdminAudit(); break;
+        default:                   await renderDashboard();
     }
 }
 
@@ -32,20 +36,24 @@ async function renderSidebar(path, params) {
     projectsNav.innerHTML = projects.map(p => {
         const active = currentKey === 'project:' + p.project_name ? 'active' : '';
         const statusDot = p.run_status === 'running'
-            ? '<span class="relative w-1.5 h-1.5 rounded-full bg-accent-success dot-running"></span>'
+            ? '<span class="relative w-1.5 h-1.5 rounded-full bg-accent-success dot-running flex-shrink-0"></span>'
             : p.run_status === 'error'
-                ? '<span class="w-1.5 h-1.5 rounded-full bg-accent-error"></span>'
-                : '<span class="w-1.5 h-1.5 rounded-full bg-on-surface-subtle"></span>';
-        return `<a href="#project?name=${p.project_name}" class="sidebar-item ${active} flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-on-surface-muted">
-            <span class="material-icons-outlined text-base">folder_special</span>
-            <span class="flex-1 truncate">${p.project_name}</span>
-            ${statusDot}
+                ? '<span class="w-1.5 h-1.5 rounded-full bg-accent-error flex-shrink-0"></span>'
+                : '<span class="w-1.5 h-1.5 rounded-full bg-on-surface-subtle flex-shrink-0"></span>';
+        return `<a href="#project?name=${p.project_name}" data-tooltip="${p.project_name}" class="sidebar-item ${active}">
+            <span class="icon"><span class="material-icons-outlined" style="font-size: 20px;">folder_special</span></span>
+            <span class="label-text flex-1 truncate">${p.project_name}</span>
+            <span class="badge-count">${statusDot}</span>
         </a>`;
     }).join('');
 
     document.querySelectorAll('[data-nav]').forEach(el => {
         el.classList.toggle('active', el.dataset.nav === path);
     });
+
+    // Users badge count
+    const usersBadge = document.getElementById('usersBadge');
+    if (usersBadge) usersBadge.textContent = String(MOCK_ADMIN.users.length).padStart(2, '0');
 }
 
 // ==================== Helpers ====================
@@ -84,6 +92,34 @@ function metricCard({ icon, label, value, trend, color = 'primary', accent = '' 
         <div class="relative">
             <div class="text-xs text-on-surface-muted uppercase tracking-wider mb-1">${label}</div>
             <div class="text-3xl font-display font-extrabold tracking-tight">${value}</div>
+        </div>
+    </div>`;
+}
+
+function kpiCard({ icon, label, value, delta, trend, sub, color = 'primary' }) {
+    const trendStyle = trend === 'up'
+        ? 'text-accent-success bg-accent-success/10'
+        : trend === 'down'
+            ? 'text-accent-error bg-accent-error/10'
+            : 'text-on-surface-muted bg-surface-4';
+    const trendIcon = trend === 'up' ? 'trending_up' : trend === 'down' ? 'trending_down' : 'trending_flat';
+    return `<div class="stat-card card-hover card-glow-top border-gradient bg-surface-2/60 rounded-2xl p-5">
+        <div class="stat-card-icon-bg bg-${color}"></div>
+        <div class="relative flex items-start justify-between mb-5">
+            <div class="w-11 h-11 rounded-xl bg-${color}/10 flex items-center justify-center">
+                <span class="material-icons-outlined text-${color}" style="font-size: 22px;">${icon}</span>
+            </div>
+            ${delta ? `<span class="badge ${trendStyle}">
+                <span class="material-icons-outlined" style="font-size:11px;">${trendIcon}</span>
+                ${delta}
+            </span>` : ''}
+        </div>
+        <div class="relative">
+            <div class="text-[10px] text-on-surface-muted uppercase tracking-[0.15em] font-semibold mb-1.5">${label}</div>
+            <div class="flex items-baseline gap-2">
+                <div class="text-3xl font-display font-extrabold tracking-tight counter">${value}</div>
+                ${sub ? `<div class="text-xs text-on-surface-muted">${sub}</div>` : ''}
+            </div>
         </div>
     </div>`;
 }
@@ -133,6 +169,7 @@ async function renderDashboard() {
     const relevant = articles.filter(a => a.is_relevant).length;
     const relevantPct = total ? Math.round((relevant / total) * 100) : 0;
     const running = projects.filter(p => p.run_status === 'running').length;
+    const avgScore = total ? Math.round(articles.reduce((s, a) => s + (a.relevance_score || 0), 0) / total) : 0;
 
     const byProject = {};
     articles.forEach(a => byProject[a.project_name] = (byProject[a.project_name] || 0) + 1);
@@ -144,46 +181,135 @@ async function renderDashboard() {
         return { ...p, agents_count: agents.length, tasks_count: tasks.length, sources_count: sources.length };
     }));
 
+    // 7-day data (simulated)
+    const days = [];
+    const dailyCounts = [];
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        days.push(d.toLocaleDateString('en-US', { weekday: 'short' }));
+        dailyCounts.push(Math.floor(Math.random() * 20) + 5);
+    }
+
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
     const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
     app.innerHTML = `
     <!-- Hero -->
-    <div class="relative mb-12 overflow-hidden">
-        <div class="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl -z-10"></div>
-        <div class="absolute top-20 right-40 w-64 h-64 bg-tertiary/10 rounded-full blur-3xl -z-10"></div>
+    <div class="relative mb-10 overflow-hidden">
+        <div class="absolute top-0 right-0 w-[600px] h-[400px] bg-gradient-to-br from-primary/10 via-tertiary/5 to-transparent rounded-full blur-3xl -z-10"></div>
 
-        <div class="text-xs text-on-surface-muted uppercase tracking-[0.2em] mb-3 font-semibold">${today}</div>
-        <h1 class="font-display text-5xl font-extrabold tracking-tight leading-tight mb-3">
-            Good evening.<br>
-            <span class="text-gradient">${total}</span> articles processed today.
+        <div class="flex items-baseline justify-between mb-3">
+            <div class="text-xs text-on-surface-muted uppercase tracking-[0.2em] font-semibold flex items-center gap-2">
+                <span class="w-1 h-1 rounded-full bg-primary"></span>
+                ${today}
+            </div>
+            <div class="flex items-center gap-2 text-xs text-on-surface-muted">
+                <span class="relative w-1.5 h-1.5 rounded-full bg-accent-success dot-running"></span>
+                <span>System operational</span>
+            </div>
+        </div>
+
+        <h1 class="font-display text-5xl xl:text-6xl font-extrabold tracking-tight leading-[1.05] mb-4">
+            ${greeting},<br>
+            <span class="text-gradient counter">${total}</span> articles today.
         </h1>
-        <p class="text-on-surface-muted text-lg max-w-2xl">
-            ${relevant} deemed relevant across ${projects.length} active projects. ${running > 0 ? `${running} workflow currently running.` : 'All workflows idle.'}
+        <p class="text-on-surface-muted text-base max-w-2xl">
+            ${relevant} classified as relevant across ${projects.length} active projects.
+            ${running > 0 ? `<span class="text-accent-success">${running} workflow currently running.</span>` : 'All workflows idle.'}
         </p>
     </div>
 
-    <!-- Metric cards -->
-    <div class="grid grid-cols-4 gap-4 mb-10">
-        ${metricCard({ icon: 'feed', label: 'Total Articles', value: total, trend: 12, color: 'primary', accent: true })}
-        ${metricCard({ icon: 'auto_awesome', label: 'Relevant', value: relevant, trend: 8, color: 'tertiary', accent: true })}
-        ${metricCard({ icon: 'percent', label: 'Relevance Rate', value: relevantPct + '%', color: 'secondary' })}
-        ${metricCard({ icon: 'bolt', label: 'Running', value: running, color: 'accent-success' })}
+    <!-- KPI cards -->
+    <div class="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+        ${kpiCard({ icon: 'feed', label: 'Total Articles', value: total, delta: '+12%', trend: 'up', color: 'primary' })}
+        ${kpiCard({ icon: 'auto_awesome', label: 'Relevant', value: relevant, delta: '+8%', trend: 'up', color: 'tertiary' })}
+        ${kpiCard({ icon: 'speed', label: 'Avg. Score', value: avgScore + '%', delta: '-2%', trend: 'down', color: 'secondary' })}
+        ${kpiCard({ icon: 'bolt', label: 'Active Runs', value: running, sub: `${projects.length - running} idle`, color: 'accent-success' })}
     </div>
 
-    <!-- Charts row -->
-    <div class="grid grid-cols-3 gap-5 mb-10">
+    <!-- Charts grid -->
+    <div class="grid grid-cols-3 gap-5 mb-8">
         <div class="col-span-2 bg-surface-2/60 rounded-2xl p-6 card-glow-top">
-            ${sectionHeader('Article Volume', 'Articles processed per project this period')}
-            <canvas id="chartProjects" height="250"></canvas>
+            <div class="flex items-start justify-between mb-5">
+                <div>
+                    <h3 class="font-display font-bold text-lg">Article Volume · 7 days</h3>
+                    <p class="text-xs text-on-surface-muted mt-0.5">Daily processing across all projects</p>
+                </div>
+                <div class="flex gap-2 text-xs">
+                    <button class="px-3 py-1.5 rounded-lg bg-primary/10 text-primary font-medium">7D</button>
+                    <button class="px-3 py-1.5 rounded-lg text-on-surface-muted hover:bg-surface-3">30D</button>
+                    <button class="px-3 py-1.5 rounded-lg text-on-surface-muted hover:bg-surface-3">90D</button>
+                </div>
+            </div>
+            <div class="relative" style="height: 240px;">
+                <canvas id="chartDaily"></canvas>
+            </div>
+        </div>
+        <div class="bg-surface-2/60 rounded-2xl p-6 card-glow-top flex flex-col">
+            <div class="mb-4">
+                <h3 class="font-display font-bold text-lg">Relevance</h3>
+                <p class="text-xs text-on-surface-muted mt-0.5">Classification split</p>
+            </div>
+            <div class="relative flex-1 flex items-center justify-center" style="min-height: 180px;">
+                <canvas id="chartRelevance"></canvas>
+                <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <div class="font-display text-4xl font-extrabold text-gradient">${relevantPct}%</div>
+                    <div class="text-[10px] text-on-surface-muted uppercase tracking-[0.15em] mt-1">Relevant</div>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-outline/20">
+                <div>
+                    <div class="flex items-center gap-1.5 text-xs text-on-surface-muted"><span class="w-2 h-2 rounded-full bg-primary"></span>Relevant</div>
+                    <div class="font-mono font-bold text-sm mt-0.5">${relevant}</div>
+                </div>
+                <div>
+                    <div class="flex items-center gap-1.5 text-xs text-on-surface-muted"><span class="w-2 h-2 rounded-full bg-surface-4"></span>Irrelevant</div>
+                    <div class="font-mono font-bold text-sm mt-0.5">${total - relevant}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Per-project chart + Activity -->
+    <div class="grid grid-cols-3 gap-5 mb-8">
+        <div class="col-span-2 bg-surface-2/60 rounded-2xl p-6 card-glow-top">
+            <div class="flex items-baseline justify-between mb-5">
+                <div>
+                    <h3 class="font-display font-bold text-lg">By Project</h3>
+                    <p class="text-xs text-on-surface-muted mt-0.5">Article distribution per project</p>
+                </div>
+            </div>
+            <div class="relative" style="height: 260px;">
+                <canvas id="chartProjects"></canvas>
+            </div>
         </div>
         <div class="bg-surface-2/60 rounded-2xl p-6 card-glow-top">
-            ${sectionHeader('Relevance Split', 'AI classification outcome')}
-            <div class="relative">
-                <canvas id="chartRelevance" height="240"></canvas>
-                <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pt-2">
-                    <div class="font-display text-4xl font-extrabold text-gradient">${relevantPct}%</div>
-                    <div class="text-xs text-on-surface-muted uppercase tracking-wider mt-1">Relevant</div>
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="font-display font-bold text-lg">Activity</h3>
+                    <p class="text-xs text-on-surface-muted mt-0.5">Recent events</p>
                 </div>
+                <span class="badge bg-accent-success/10 text-accent-success">Live</span>
+            </div>
+            <div class="space-y-3">
+                ${[
+                    { icon: 'play_arrow', color: 'accent-success', text: '<strong>legal_task</strong> started', time: '2m ago' },
+                    { icon: 'check_circle', color: 'primary', text: '12 articles classified', time: '5m ago' },
+                    { icon: 'mail', color: 'tertiary', text: 'Report emailed', time: '14m ago' },
+                    { icon: 'schedule', color: 'secondary', text: 'Scheduler reloaded', time: '1h ago' },
+                    { icon: 'person_add', color: 'accent-warning', text: 'User <strong>editor@co</strong> added', time: '3h ago' },
+                ].map(e => `
+                    <div class="flex items-start gap-3">
+                        <div class="w-7 h-7 rounded-lg bg-${e.color}/10 flex items-center justify-center flex-shrink-0">
+                            <span class="material-icons-outlined text-${e.color}" style="font-size:14px;">${e.icon}</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-xs">${e.text}</div>
+                            <div class="text-[10px] text-on-surface-muted mt-0.5">${e.time}</div>
+                        </div>
+                    </div>`).join('')}
             </div>
         </div>
     </div>
@@ -260,7 +386,37 @@ async function renderDashboard() {
             </div>`).join('')}
     </div>`;
 
-    // Charts
+    // Daily line chart
+    new Chart(document.getElementById('chartDaily'), {
+        type: 'line',
+        data: {
+            labels: days,
+            datasets: [{
+                label: 'Articles',
+                data: dailyCounts,
+                borderColor: '#85adff',
+                backgroundColor: (c) => {
+                    const g = c.chart.ctx.createLinearGradient(0, 0, 0, 180);
+                    g.addColorStop(0, 'rgba(133, 173, 255, 0.35)');
+                    g.addColorStop(1, 'rgba(133, 173, 255, 0)');
+                    return g;
+                },
+                fill: true, tension: 0.42, borderWidth: 2.5,
+                pointRadius: 4, pointHoverRadius: 6,
+                pointBackgroundColor: '#85adff', pointBorderColor: '#060e20', pointBorderWidth: 2,
+            }],
+        },
+        options: {
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { backgroundColor: '#091328', borderColor: '#2a3352', borderWidth: 1, padding: 12 } },
+            scales: {
+                y: { ticks: { color: '#7b86a8', font: { size: 10 } }, grid: { color: 'rgba(42, 51, 82, 0.2)' }, beginAtZero: true },
+                x: { ticks: { color: '#7b86a8', font: { size: 10 } }, grid: { display: false } },
+            },
+        },
+    });
+
+    // Project bar chart
     new Chart(document.getElementById('chartProjects'), {
         type: 'bar',
         data: {
@@ -268,23 +424,25 @@ async function renderDashboard() {
             datasets: [{
                 data: Object.values(byProject),
                 backgroundColor: (ctx) => {
-                    const c = ctx.chart.ctx.createLinearGradient(0, 0, 0, 250);
-                    c.addColorStop(0, 'rgba(133, 173, 255, 0.8)');
-                    c.addColorStop(1, 'rgba(133, 173, 255, 0.1)');
+                    const c = ctx.chart.ctx.createLinearGradient(0, 0, 0, 140);
+                    c.addColorStop(0, 'rgba(172, 138, 255, 0.8)');
+                    c.addColorStop(1, 'rgba(133, 173, 255, 0.2)');
                     return c;
                 },
-                borderRadius: 8, borderSkipped: false,
+                borderRadius: 8, borderSkipped: false, barPercentage: 0.6,
             }],
         },
         options: {
-            plugins: { legend: { display: false } },
+            maintainAspectRatio: false, indexAxis: 'y',
+            plugins: { legend: { display: false }, tooltip: { backgroundColor: '#091328' } },
             scales: {
-                y: { ticks: { color: '#7b86a8', font: { size: 11 } }, grid: { color: 'rgba(42, 51, 82, 0.3)' }, beginAtZero: true },
-                x: { ticks: { color: '#7b86a8', font: { size: 11 } }, grid: { display: false } },
+                x: { ticks: { color: '#7b86a8', font: { size: 11 } }, grid: { color: 'rgba(42, 51, 82, 0.3)' }, beginAtZero: true },
+                y: { ticks: { color: '#7b86a8', font: { size: 11 } }, grid: { display: false } },
             },
         },
     });
 
+    // Relevance doughnut
     new Chart(document.getElementById('chartRelevance'), {
         type: 'doughnut',
         data: {
@@ -296,15 +454,293 @@ async function renderDashboard() {
             }],
         },
         options: {
-            cutout: '75%',
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: { color: '#dee5ff', font: { size: 11 }, padding: 12, boxWidth: 10, boxHeight: 10, usePointStyle: true, pointStyle: 'circle' },
-                },
-            },
+            cutout: '72%', maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
         },
     });
+}
+
+// ==================== Admin — Mock data ====================
+const MOCK_ADMIN = {
+    users: [
+        { id: 1, email: 'admin@synthetica.com',  name: 'Trần Admin',      role: 'admin',  lastSeen: 'Just now',   status: 'active' },
+        { id: 2, email: 'legal@synthetica.com',  name: 'Legal Manager',   role: 'editor', lastSeen: '2h ago',     status: 'active' },
+        { id: 3, email: 'analyst@synthetica.com', name: 'Data Analyst',   role: 'viewer', lastSeen: '1d ago',     status: 'active' },
+        { id: 4, email: 'ops@synthetica.com',    name: 'Ops Lead',        role: 'editor', lastSeen: '3d ago',     status: 'inactive' },
+    ],
+    llm: [
+        { id: 1, provider: 'OpenRouter', model: 'google/gemini-2.0-flash-exp:free', status: 'active',   usage: 420, limit: 1000 },
+        { id: 2, provider: 'Ollama',     model: 'llama3.2:1b',                      status: 'active',   usage: null, limit: null },
+        { id: 3, provider: 'OpenAI',     model: 'gpt-4o-mini',                      status: 'inactive', usage: 0,   limit: null },
+    ],
+    integrations: [
+        { id: 1, name: 'SMTP',        type: 'email',       status: 'connected', icon: 'mail' },
+        { id: 2, name: 'Slack',       type: 'notification', status: 'disconnected', icon: 'chat' },
+        { id: 3, name: 'Webhook',     type: 'webhook',     status: 'connected', icon: 'webhook' },
+        { id: 4, name: 'Google Drive', type: 'storage',    status: 'disconnected', icon: 'cloud' },
+    ],
+    audit: [
+        { ts: '2026-04-23 10:32', user: 'admin@syn', action: 'agent.update',    target: 'legal_task/classifier',  ip: '192.168.1.5' },
+        { ts: '2026-04-23 10:15', user: 'admin@syn', action: 'scheduler.reload', target: '—',                     ip: '192.168.1.5' },
+        { ts: '2026-04-23 09:48', user: 'legal@syn', action: 'article.approve', target: '#128',                   ip: '10.0.0.12' },
+        { ts: '2026-04-23 09:30', user: 'admin@syn', action: 'user.add',        target: 'analyst@syn',            ip: '192.168.1.5' },
+        { ts: '2026-04-22 17:20', user: 'admin@syn', action: 'llm.configure',   target: 'openrouter',             ip: '192.168.1.5' },
+        { ts: '2026-04-22 15:05', user: 'ops@syn',   action: 'project.create',  target: 'er_task',                ip: '10.0.0.8' },
+    ],
+};
+
+// ==================== Admin — General Settings ====================
+function renderAdminGeneral() {
+    app.innerHTML = `
+    ${pageHeader('General Settings', 'System-wide configuration')}
+
+    <div class="grid grid-cols-3 gap-5">
+        <div class="col-span-2 space-y-5">
+            <div class="bg-surface-2/60 rounded-2xl p-6 card-glow-top">
+                ${sectionHeader('Organization', 'Brand and identity')}
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-xs uppercase tracking-wider text-on-surface-muted font-semibold">Organization Name</label>
+                        <input value="Synthetica News Intelligence" class="w-full mt-2 bg-surface-3/60 rounded-xl px-4 py-2.5 text-sm border border-outline/30">
+                    </div>
+                    <div>
+                        <label class="text-xs uppercase tracking-wider text-on-surface-muted font-semibold">Support Email</label>
+                        <input value="support@synthetica.com" class="w-full mt-2 bg-surface-3/60 rounded-xl px-4 py-2.5 text-sm border border-outline/30">
+                    </div>
+                    <div>
+                        <label class="text-xs uppercase tracking-wider text-on-surface-muted font-semibold">Timezone</label>
+                        <select class="w-full mt-2 bg-surface-3/60 rounded-xl px-4 py-2.5 text-sm border border-outline/30">
+                            <option>Asia/Ho_Chi_Minh (UTC+07:00)</option>
+                            <option>UTC</option>
+                            <option>America/New_York</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-surface-2/60 rounded-2xl p-6 card-glow-top">
+                ${sectionHeader('Defaults', 'Applied when creating a new project')}
+                <div class="space-y-4">
+                    ${toggleRow('Require approval', 'Articles need admin approval before publishing.', true)}
+                    ${toggleRow('Auto-translate to all languages', 'Run translation crew on every relevant article.', true)}
+                    ${toggleRow('Send email digest', 'Daily summary at 8 AM to subscribers.', false)}
+                    ${toggleRow('Store original HTML', 'Keep raw HTML of every crawled article.', false)}
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-5">
+            <div class="bg-surface-2/60 rounded-2xl p-6 card-glow-top">
+                ${sectionHeader('System', 'Runtime info')}
+                <div class="space-y-3 text-xs">
+                    ${systemInfoRow('Version', '0.1.0')}
+                    ${systemInfoRow('Environment', 'Production')}
+                    ${systemInfoRow('Uptime', '14d 6h 42m')}
+                    ${systemInfoRow('Database', 'MySQL 8.0')}
+                    ${systemInfoRow('Scheduler', '<span class="text-accent-success">Running</span>')}
+                </div>
+            </div>
+            <div class="bg-gradient-to-br from-surface-2/60 to-tertiary/5 border border-tertiary/20 rounded-2xl p-6">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="material-icons-outlined text-tertiary">info</span>
+                    <h3 class="font-display font-bold">Need help?</h3>
+                </div>
+                <p class="text-sm text-on-surface-muted mb-4">Check our documentation or contact support.</p>
+                <button class="btn-primary px-4 py-2 rounded-lg text-xs w-full">View Docs</button>
+            </div>
+        </div>
+    </div>`;
+}
+
+function toggleRow(title, desc, checked) {
+    return `<div class="flex items-start justify-between gap-4 p-3 bg-surface-3/30 rounded-xl">
+        <div>
+            <div class="text-sm font-medium">${title}</div>
+            <div class="text-xs text-on-surface-muted mt-0.5">${desc}</div>
+        </div>
+        <label class="relative inline-flex cursor-pointer flex-shrink-0">
+            <input type="checkbox" ${checked ? 'checked' : ''} class="sr-only peer">
+            <div class="w-11 h-6 bg-surface-4 rounded-full peer peer-checked:bg-gradient-to-r peer-checked:from-primary peer-checked:to-primary-dim transition-all relative">
+                <div class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-on-surface-muted peer-checked:bg-canvas transition-all peer-checked:translate-x-5"></div>
+            </div>
+        </label>
+    </div>`;
+}
+
+function systemInfoRow(label, value) {
+    return `<div class="flex justify-between items-center py-2 border-b border-outline/20 last:border-0">
+        <span class="text-on-surface-muted">${label}</span>
+        <span class="font-mono">${value}</span>
+    </div>`;
+}
+
+// ==================== Admin — Users ====================
+function renderAdminUsers() {
+    const users = MOCK_ADMIN.users;
+    app.innerHTML = `
+    ${pageHeader('Users & Roles', `${users.length} users · Manage access across all projects`, btnPrimary('Invite User', "alert('Mock: invite user')", 'person_add'))}
+
+    <div class="grid grid-cols-4 gap-4 mb-6">
+        ${kpiCard({ icon: 'group', label: 'Total Users', value: users.length, color: 'primary' })}
+        ${kpiCard({ icon: 'shield', label: 'Admins', value: users.filter(u => u.role === 'admin').length, color: 'tertiary' })}
+        ${kpiCard({ icon: 'edit', label: 'Editors', value: users.filter(u => u.role === 'editor').length, color: 'secondary' })}
+        ${kpiCard({ icon: 'check_circle', label: 'Active', value: users.filter(u => u.status === 'active').length, color: 'accent-success' })}
+    </div>
+
+    <div class="bg-surface-2/60 rounded-2xl overflow-hidden card-glow-top">
+        <table class="w-full text-sm">
+            <thead class="text-left text-on-surface-muted text-[10px] uppercase tracking-[0.15em] bg-surface-3/30">
+                <tr>
+                    <th class="px-6 py-3.5">User</th>
+                    <th>Role</th>
+                    <th>Last Seen</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                ${users.map(u => {
+                    const initials = u.name.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
+                    const roleStyle = {
+                        admin:  'bg-tertiary/15 text-tertiary',
+                        editor: 'bg-primary/15 text-primary',
+                        viewer: 'bg-surface-4 text-on-surface-muted',
+                    }[u.role];
+                    return `<tr class="border-t border-outline/20 data-row">
+                        <td class="px-6 py-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-full bg-gradient-to-br from-primary/30 to-tertiary/30 flex items-center justify-center text-xs font-bold">${initials}</div>
+                                <div>
+                                    <div class="font-medium">${u.name}</div>
+                                    <div class="text-xs text-on-surface-muted">${u.email}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="badge ${roleStyle}">${u.role}</span></td>
+                        <td class="text-xs text-on-surface-muted">${u.lastSeen}</td>
+                        <td>
+                            <span class="badge ${u.status === 'active' ? 'bg-accent-success/10 text-accent-success' : 'bg-surface-4 text-on-surface-muted'}">
+                                <span class="w-1 h-1 rounded-full bg-current"></span>${u.status}
+                            </span>
+                        </td>
+                        <td class="px-6">
+                            <button onclick="alert('Mock: edit ${u.email}')" class="text-primary hover:underline text-xs">Edit</button>
+                        </td>
+                    </tr>`;
+                }).join('')}
+            </tbody>
+        </table>
+    </div>`;
+}
+
+// ==================== Admin — LLM Providers ====================
+function renderAdminLlm() {
+    const llms = MOCK_ADMIN.llm;
+    app.innerHTML = `
+    ${pageHeader('LLM Providers', 'Configure AI model providers', btnPrimary('Add Provider', "alert('Mock')", 'add'))}
+
+    <div class="grid grid-cols-3 gap-5 mb-6">
+        ${llms.map(l => {
+            const usagePct = l.limit ? Math.round((l.usage / l.limit) * 100) : 0;
+            const icon = l.provider === 'OpenAI' ? 'psychology' : l.provider === 'Ollama' ? 'memory' : 'hub';
+            return `<div class="bg-surface-2/60 rounded-2xl p-6 card-glow-top card-hover">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center">
+                        <span class="material-icons-outlined text-primary" style="font-size: 22px;">${icon}</span>
+                    </div>
+                    <span class="badge ${l.status === 'active' ? 'bg-accent-success/10 text-accent-success' : 'bg-surface-4 text-on-surface-muted'}">
+                        <span class="w-1 h-1 rounded-full bg-current"></span>${l.status}
+                    </span>
+                </div>
+                <div class="text-xs text-on-surface-muted uppercase tracking-wider mb-1">${l.provider}</div>
+                <div class="font-display font-bold text-lg mb-4 font-mono">${l.model}</div>
+
+                ${l.limit ? `
+                <div class="mb-3">
+                    <div class="flex items-center justify-between text-xs mb-2">
+                        <span class="text-on-surface-muted">Daily Usage</span>
+                        <span class="font-mono"><strong>${l.usage}</strong> / ${l.limit}</span>
+                    </div>
+                    <div class="h-1.5 bg-surface-4 rounded-full overflow-hidden">
+                        <div class="h-full rounded-full ${usagePct > 80 ? 'bg-accent-error' : 'bg-gradient-to-r from-primary to-tertiary'}" style="width: ${usagePct}%"></div>
+                    </div>
+                </div>` : `<div class="text-xs text-on-surface-muted mb-3">No usage limit (self-hosted)</div>`}
+
+                <button onclick="alert('Mock: configure ${l.provider}')" class="w-full mt-2 text-xs py-2 rounded-lg bg-surface-3/60 hover:bg-surface-4 transition">Configure</button>
+            </div>`;
+        }).join('')}
+    </div>`;
+}
+
+// ==================== Admin — Integrations ====================
+function renderAdminIntegrations() {
+    const intgs = MOCK_ADMIN.integrations;
+    app.innerHTML = `
+    ${pageHeader('Integrations', 'Connect external services')}
+
+    <div class="grid grid-cols-2 xl:grid-cols-3 gap-5">
+        ${intgs.map(i => `
+            <div class="bg-surface-2/60 rounded-2xl p-5 card-glow-top card-hover">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center">
+                            <span class="material-icons-outlined text-secondary" style="font-size: 20px;">${i.icon}</span>
+                        </div>
+                        <div>
+                            <div class="font-semibold">${i.name}</div>
+                            <div class="text-[10px] text-on-surface-muted uppercase tracking-wider">${i.type}</div>
+                        </div>
+                    </div>
+                    <span class="badge ${i.status === 'connected' ? 'bg-accent-success/10 text-accent-success' : 'bg-surface-4 text-on-surface-muted'}">
+                        <span class="w-1 h-1 rounded-full bg-current"></span>${i.status}
+                    </span>
+                </div>
+                <button onclick="alert('Mock: configure ${i.name}')" class="w-full text-xs py-2 rounded-lg ${i.status === 'connected' ? 'bg-surface-3/60 hover:bg-surface-4' : 'btn-primary'} transition">
+                    ${i.status === 'connected' ? 'Manage' : 'Connect'}
+                </button>
+            </div>`).join('')}
+    </div>`;
+}
+
+// ==================== Admin — Audit Log ====================
+function renderAdminAudit() {
+    const logs = MOCK_ADMIN.audit;
+    app.innerHTML = `
+    ${pageHeader('Audit Log', 'System activity and changes')}
+
+    <div class="bg-surface-2/60 rounded-2xl overflow-hidden card-glow-top">
+        <div class="p-4 border-b border-outline/20 flex items-center gap-3">
+            <span class="material-icons-outlined text-on-surface-muted" style="font-size: 18px;">search</span>
+            <input type="text" placeholder="Search logs..." class="flex-1 bg-transparent outline-none text-sm">
+            <button class="text-xs text-on-surface-muted hover:text-on-surface flex items-center gap-1">
+                <span class="material-icons-outlined" style="font-size: 14px;">filter_list</span> Filter
+            </button>
+            <button class="text-xs text-on-surface-muted hover:text-on-surface flex items-center gap-1">
+                <span class="material-icons-outlined" style="font-size: 14px;">download</span> Export
+            </button>
+        </div>
+        <table class="w-full text-sm">
+            <thead class="text-left text-on-surface-muted text-[10px] uppercase tracking-[0.15em] bg-surface-3/30">
+                <tr>
+                    <th class="px-6 py-3.5">Timestamp</th>
+                    <th>User</th>
+                    <th>Action</th>
+                    <th>Target</th>
+                    <th>IP Address</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${logs.map(l => `
+                    <tr class="border-t border-outline/20 data-row">
+                        <td class="px-6 py-3.5 font-mono text-xs text-on-surface-muted">${l.ts}</td>
+                        <td class="text-xs">${l.user}</td>
+                        <td><code class="text-xs font-mono text-primary">${l.action}</code></td>
+                        <td class="text-xs font-mono text-on-surface-muted">${l.target}</td>
+                        <td class="text-xs font-mono text-on-surface-muted">${l.ip}</td>
+                    </tr>`).join('')}
+            </tbody>
+        </table>
+    </div>`;
 }
 
 // ==================== Project ====================

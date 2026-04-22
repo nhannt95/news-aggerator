@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <title>Synthetica — News Feed</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Manrope:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'canvas': '#060e20',
+                        'surface-1': '#091328',
+                        'surface-2': '#0f1a35',
+                        'surface-3': '#192540',
+                        'surface-4': '#1f2b49',
+                        'primary': '#85adff',
+                        'primary-dim': '#6e9fff',
+                        'secondary': '#9093ff',
+                        'tertiary': '#ac8aff',
+                        'on-surface': '#dee5ff',
+                        'on-surface-muted': '#7b86a8',
+                        'on-surface-subtle': '#4a5273',
+                        'accent-error': '#ff716c',
+                        'accent-success': '#6fcf97',
+                        'accent-warning': '#f2c94c',
+                        'outline': '#2a3352',
+                    },
+                    fontFamily: {
+                        'display': ['Manrope', 'sans-serif'],
+                        'body': ['Inter', 'sans-serif'],
+                        'mono': ['JetBrains Mono', 'monospace'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --canvas: #060e20;
+            --surface-1: #091328;
+            --surface-2: #0f1a35;
+            --surface-3: #192540;
+            --surface-4: #1f2b49;
+            --primary: #85adff;
+            --primary-dim: #6e9fff;
+            --tertiary: #ac8aff;
+            --on-surface: #dee5ff;
+        }
+
+        * { scrollbar-width: thin; scrollbar-color: #1f2b49 #060e20; }
+        *::-webkit-scrollbar { width: 8px; height: 8px; }
+        *::-webkit-scrollbar-thumb { background: #1f2b49; border-radius: 4px; }
+
+        html, body { height: 100%; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--canvas);
+            color: var(--on-surface);
+            background-image:
+                radial-gradient(ellipse at top, rgba(133, 173, 255, 0.06), transparent 50%),
+                radial-gradient(ellipse at bottom right, rgba(172, 138, 255, 0.04), transparent 40%);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .app-container {
+            width: 96%;
+            margin: 0 auto;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .material-icons-outlined { vertical-align: middle; }
+
+        .glass {
+            background: rgba(15, 26, 53, 0.5);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+
+        .text-gradient {
+            background: linear-gradient(135deg, #85adff, #ac8aff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Breaking news ticker */
+        .ticker-wrapper {
+            position: relative;
+            overflow: hidden;
+            mask-image: linear-gradient(90deg, transparent 0, black 40px, black calc(100% - 40px), transparent 100%);
+            -webkit-mask-image: linear-gradient(90deg, transparent 0, black 40px, black calc(100% - 40px), transparent 100%);
+        }
+        .ticker-track {
+            display: inline-flex;
+            animation: ticker 45s linear infinite;
+            white-space: nowrap;
+        }
+        .ticker-track:hover { animation-play-state: paused; }
+        @keyframes ticker {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        /* Progress bar */
+        .relevance-bar {
+            background: linear-gradient(90deg, var(--primary), var(--tertiary));
+        }
+
+        /* Row hover */
+        .data-row { transition: background 0.15s; }
+        .data-row:hover { background: rgba(31, 43, 73, 0.4); }
+
+        /* Tab */
+        .lang-tab {
+            position: relative;
+            transition: all 0.2s;
+        }
+        .lang-tab::after {
+            content: '';
+            position: absolute;
+            bottom: -1px; left: 50%;
+            width: 0; height: 2px;
+            background: linear-gradient(90deg, var(--primary), var(--tertiary));
+            transition: all 0.3s;
+            transform: translateX(-50%);
+        }
+        .lang-tab.active { color: var(--primary); }
+        .lang-tab.active::after { width: 100%; }
+
+        /* Inputs */
+        select, input { outline: none; }
+        select:focus, input:focus { box-shadow: 0 0 0 2px rgba(133, 173, 255, 0.4); }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #85adff 0%, #6e9fff 100%);
+            color: #060e20;
+            font-weight: 600;
+            box-shadow: 0 4px 16px rgba(133, 173, 255, 0.15);
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-in { animation: fadeIn 0.3s ease-out; }
+
+        /* Pulse for LIVE dot */
+        @keyframes pulseDot {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255, 113, 108, 0.7); }
+            50% { box-shadow: 0 0 0 8px rgba(255, 113, 108, 0); }
+        }
+        .live-dot { animation: pulseDot 1.5s infinite; }
+
+        .card-glow-top { position: relative; }
+        .card-glow-top::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 10%; right: 10%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(133, 173, 255, 0.4), transparent);
+        }
+
+        /* Pagination */
+        .page-btn {
+            min-width: 32px; height: 32px;
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: 500;
+            border-radius: 8px;
+            transition: all 0.15s;
+            color: #7b86a8;
+        }
+        .page-btn:hover:not(:disabled) { background: #192540; color: #dee5ff; }
+        .page-btn.active {
+            background: linear-gradient(135deg, #85adff, #6e9fff);
+            color: #060e20; font-weight: 700;
+        }
+        .page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+        /* Topic colors — consistent hashed palette */
+        .topic-c0 { background: rgba(133, 173, 255, 0.15); color: #85adff; }
+        .topic-c1 { background: rgba(172, 138, 255, 0.15); color: #ac8aff; }
+        .topic-c2 { background: rgba(111, 207, 151, 0.15); color: #6fcf97; }
+        .topic-c3 { background: rgba(242, 201, 76, 0.15); color: #f2c94c; }
+        .topic-c4 { background: rgba(255, 113, 108, 0.15); color: #ff716c; }
+        .topic-c5 { background: rgba(144, 147, 255, 0.15); color: #9093ff; }
+        .topic-c6 { background: rgba(110, 159, 255, 0.15); color: #6e9fff; }
+        .topic-c7 { background: rgba(200, 160, 255, 0.15); color: #c8a0ff; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+
+<!-- Breaking News Ticker -->
+<div class="glass border-b border-outline/30 rounded-t-2xl mt-[2vh] flex-shrink-0">
+    <div class="flex items-center gap-4 px-6 py-2.5">
+        <div class="flex items-center gap-2 bg-accent-error/10 px-3 py-1 rounded-lg flex-shrink-0">
+            <span class="w-2 h-2 rounded-full bg-accent-error live-dot"></span>
+            <span class="text-xs uppercase font-bold tracking-[0.15em] text-accent-error">Live</span>
+        </div>
+        <div class="ticker-wrapper flex-1">
+            <div id="ticker" class="ticker-track"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Header -->
+<header class="border-b border-outline/30 flex-shrink-0">
+    <div class="px-6 py-4 flex items-center gap-6">
+        <!-- Logo (left) -->
+        <div class="flex items-center gap-4 flex-shrink-0">
+            <div class="relative">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary via-secondary to-tertiary flex items-center justify-center">
+                    <span class="material-icons-outlined text-canvas" style="font-size: 24px;">auto_awesome</span>
+                </div>
+                <div class="absolute -inset-1 bg-gradient-to-br from-primary/30 to-tertiary/30 rounded-xl blur-md -z-10"></div>
+            </div>
+            <div>
+                <h1 class="font-display font-extrabold text-xl text-gradient tracking-tight">Synthetica</h1>
+                <p class="text-[10px] text-on-surface-muted uppercase tracking-[0.15em]">News Intelligence</p>
+            </div>
+        </div>
+
+        <!-- Language (next to logo) -->
+        <div class="relative flex-shrink-0">
+            <select id="uiLanguage" class="appearance-none bg-surface-2/80 hover:bg-surface-3 transition border border-outline/30 rounded-xl pl-10 pr-8 py-2 text-xs font-semibold cursor-pointer uppercase tracking-wider">
+                <option value="en">English</option>
+                <option value="vi">Tiếng Việt</option>
+                <option value="kr">한국어</option>
+            </select>
+            <span class="material-icons-outlined absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-primary" style="font-size: 16px;">translate</span>
+            <span class="material-icons-outlined absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-muted" style="font-size: 16px;">expand_more</span>
+        </div>
+
+        <!-- Spacer -->
+        <div class="flex-1"></div>
+
+        <!-- Search box (toggleable) -->
+        <div id="searchWrap" class="relative flex items-center">
+            <button id="searchToggle" class="w-10 h-10 rounded-xl hover:bg-surface-3/60 flex items-center justify-center text-on-surface-muted transition">
+                <span class="material-icons-outlined">search</span>
+            </button>
+            <input id="searchInput" type="text" placeholder="Search articles..."
+                   class="hidden absolute right-0 top-1/2 -translate-y-1/2 bg-surface-2/90 border border-outline/30 rounded-xl pl-4 pr-10 py-2.5 text-sm w-72 shadow-lg" />
+        </div>
+
+        <!-- Project filter -->
+        <div class="flex items-center gap-2 flex-shrink-0">
+            <label class="text-[10px] uppercase tracking-[0.15em] text-on-surface-muted font-semibold">Project</label>
+            <div class="relative">
+                <select id="projectFilter" class="appearance-none bg-surface-2/80 hover:bg-surface-3 transition border border-outline/30 rounded-xl pl-4 pr-10 py-2.5 text-sm font-medium cursor-pointer min-w-[180px]">
+                    <option value="">All Projects</option>
+                </select>
+                <span class="material-icons-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-muted" style="font-size: 18px;">expand_more</span>
+            </div>
+        </div>
+
+        <button class="w-10 h-10 rounded-xl hover:bg-surface-3/60 flex items-center justify-center text-on-surface-muted transition flex-shrink-0">
+            <span class="material-icons-outlined">notifications</span>
+        </button>
+        <a href="index.html" class="text-xs text-on-surface-muted hover:text-primary flex items-center gap-1 flex-shrink-0">
+            <span class="material-icons-outlined" style="font-size: 16px;">admin_panel_settings</span> Admin
+        </a>
+    </div>
+</header>
+
+<!-- Main -->
+<main class="flex-1 min-h-0 px-6 py-4 overflow-hidden flex flex-col">
+    <!-- Stats row -->
+    <div id="statsRow" class="grid grid-cols-4 gap-3 mb-4 flex-shrink-0"></div>
+
+    <div class="grid grid-cols-3 gap-5 flex-1 min-h-0">
+        <!-- Left: Articles (2/3) -->
+        <section class="col-span-2 flex flex-col min-h-0">
+            <div class="flex items-baseline justify-between mb-3 flex-shrink-0">
+                <div>
+                    <h2 class="font-display font-extrabold text-xl tracking-tight">Latest Articles</h2>
+                    <p class="text-xs text-on-surface-muted mt-0.5" id="articleSubtitle">All projects</p>
+                </div>
+                <div class="text-xs text-on-surface-muted">
+                    Updated <span id="lastUpdated">just now</span>
+                </div>
+            </div>
+
+            <div id="articlesContainer" class="bg-surface-2/60 rounded-2xl card-glow-top flex-1 min-h-0 overflow-y-auto"></div>
+        </section>
+
+        <!-- Right: sidebar (Chart + Breaking + Topics) -->
+        <aside class="flex flex-col gap-3 min-h-0 overflow-y-auto pr-1">
+            <!-- Articles per day chart -->
+            <div class="bg-surface-2/60 rounded-2xl p-4 card-glow-top flex-shrink-0">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                            <span class="material-icons-outlined text-primary" style="font-size: 16px;">show_chart</span>
+                        </div>
+                        <h3 class="font-display font-bold text-sm">Articles · Last 7 days</h3>
+                    </div>
+                    <span id="totalWeek" class="text-[10px] text-on-surface-muted uppercase tracking-wider"></span>
+                </div>
+                <div class="relative h-28">
+                    <canvas id="chartDaily"></canvas>
+                </div>
+            </div>
+
+            <!-- Top Sources -->
+            <div class="bg-surface-2/60 rounded-2xl p-4 card-glow-top flex-shrink-0">
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="w-7 h-7 rounded-lg bg-secondary/10 flex items-center justify-center">
+                        <span class="material-icons-outlined text-secondary" style="font-size: 16px;">language</span>
+                    </div>
+                    <h3 class="font-display font-bold text-sm">Top Sources</h3>
+                </div>
+                <div id="sourcesList" class="space-y-2"></div>
+            </div>
+
+            <!-- Breaking News -->
+            <div class="bg-surface-2/60 rounded-2xl p-4 card-glow-top flex-shrink-0">
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="w-7 h-7 rounded-lg bg-accent-error/10 flex items-center justify-center">
+                        <span class="material-icons-outlined text-accent-error" style="font-size: 16px;">local_fire_department</span>
+                    </div>
+                    <h3 class="font-display font-bold text-sm">Breaking News</h3>
+                </div>
+                <div id="breakingList" class="space-y-2"></div>
+            </div>
+
+            <!-- Top Topics -->
+            <div class="bg-surface-2/60 rounded-2xl p-4 card-glow-top flex-shrink-0">
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="w-7 h-7 rounded-lg bg-tertiary/10 flex items-center justify-center">
+                        <span class="material-icons-outlined text-tertiary" style="font-size: 16px;">trending_up</span>
+                    </div>
+                    <h3 class="font-display font-bold text-sm">Top Topics</h3>
+                </div>
+                <div id="topicsList" class="flex flex-wrap gap-1.5"></div>
+            </div>
+        </aside>
+    </div>
+</main>
+
+</div> <!-- /.app-container -->
+
+<!-- Article Modal -->
+<div id="modal" class="hidden fixed inset-0 bg-canvas/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"></div>
+
+<script src="js/mock_data.js"></script>
+<script src="js/api.js"></script>
+<script src="js/user.js"></script>
+</body>
+</html>

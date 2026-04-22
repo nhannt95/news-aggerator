@@ -1,18 +1,31 @@
-# News Aggregator Admin (news-fe)
+# News Aggregator Frontend (news-fe)
 
-Frontend admin panel thuần **HTML + JS + mock data** — không cần server.
+Frontend thuần **HTML + JS + mock data** — không cần server. Gồm 2 trang:
+
+- [`index.html`](index.html) — **Admin panel** (quản lý agents, tasks, sources, schedulers, emails, access)
+- [`user.html`](user.html) — **News feed** (xem bài viết với modal chi tiết 3 ngôn ngữ VI/EN/KR)
 
 ## Cấu trúc
 
 ```
 news-fe/
-├── index.html           # Entry point (sidebar + layout)
+├── index.html           # Admin — sidebar + projects + CRUD
+├── user.html            # User — news feed + ticker + modal
 ├── js/
-│   ├── mock_data.js     # Toàn bộ dữ liệu mock (raw data)
+│   ├── mock_data.js     # Toàn bộ dữ liệu mock (raw data + translations)
 │   ├── api.js           # API client wrapper — swap thành fetch() khi có backend
-│   └── app.js           # Router + render pages + modals
+│   ├── app.js           # Admin: router + render pages + modals
+│   └── user.js          # User: article list + breaking news + detail modal
 └── README.md
 ```
+
+## User page features
+
+- **Breaking news ticker** chạy từ phải sang trái (pause khi hover)
+- **Header** với logo + project dropdown filter
+- **Bảng bài viết** — STT, topic+source+language, title, relevance %, buttons View/Source
+- **Sidebar phải** — Breaking News (top 4), Top Topics tags, Today's Insight
+- **Article Modal** — 3 tabs ngôn ngữ (VI/EN/KR) với sections: Summary, Content, AI Analysis, Recommendation
 
 ## Chạy
 

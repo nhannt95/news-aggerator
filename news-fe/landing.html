@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <title>Synthetica — Intelligence, Curated</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,700;9..144,900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        canvas: '#060e20', 'surface-1': '#091328', 'surface-2': '#0f1a35',
+                        'surface-3': '#192540', 'surface-4': '#1f2b49',
+                        primary: '#85adff', 'primary-dim': '#6e9fff', secondary: '#9093ff', tertiary: '#ac8aff',
+                        'on-surface': '#dee5ff', 'on-surface-muted': '#7b86a8', 'on-surface-subtle': '#4a5273',
+                        'accent-error': '#ff716c', 'accent-success': '#6fcf97', 'accent-warning': '#f2c94c',
+                        outline: '#2a3352',
+                    },
+                    fontFamily: {
+                        display: ['Fraunces', 'serif'],
+                        body: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --canvas: #060e20; --primary: #85adff; --tertiary: #ac8aff;
+            --on-surface: #dee5ff;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        *::-webkit-scrollbar { width: 0; height: 0; }
+
+        html { font-size: 16px; }
+        html, body { background: var(--canvas); color: var(--on-surface); font-family: 'Inter', sans-serif; overflow-x: hidden; }
+        body { cursor: none; }
+
+        a, button { cursor: none; }
+        .material-icons-outlined { vertical-align: middle; }
+
+        /* === Preloader === */
+        .preloader {
+            position: fixed; inset: 0; z-index: 9999;
+            background: var(--canvas);
+            display: flex; align-items: flex-end; justify-content: space-between;
+            padding: 6vw;
+            transition: transform 1.4s cubic-bezier(0.77, 0, 0.175, 1);
+        }
+        .preloader.done { transform: translateY(-100%); }
+        .preloader-counter {
+            font-family: 'Fraunces', serif;
+            font-size: clamp(8rem, 22vw, 20rem);
+            font-weight: 300;
+            line-height: 0.85;
+            letter-spacing: -0.04em;
+            font-variation-settings: "opsz" 144, "SOFT" 100;
+            background: linear-gradient(135deg, #85adff, #ac8aff);
+            -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .preloader-label {
+            font-size: 11px;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            color: #7b86a8;
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+        }
+        .preloader-tagline {
+            font-size: 11px;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: #7b86a8;
+        }
+
+        /* === Custom cursor === */
+        .cursor-dot, .cursor-ring {
+            position: fixed; top: 0; left: 0;
+            border-radius: 50%; pointer-events: none; z-index: 9998;
+            mix-blend-mode: difference;
+            will-change: transform;
+        }
+        .cursor-dot {
+            width: 6px; height: 6px;
+            background: #dee5ff;
+            transform: translate(-50%, -50%);
+            transition: width 0.2s, height 0.2s, background 0.2s;
+        }
+        .cursor-ring {
+            width: 36px; height: 36px;
+            border: 1px solid rgba(222, 229, 255, 0.5);
+            transform: translate(-50%, -50%);
+            transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1), height 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s, background 0.3s;
+        }
+        .cursor-hover .cursor-dot { width: 0; height: 0; }
+        .cursor-hover .cursor-ring {
+            width: 72px; height: 72px;
+            background: rgba(133, 173, 255, 0.15);
+            border-color: #85adff;
+        }
+
+        /* === Grain noise === */
+        .noise {
+            position: fixed; inset: 0; z-index: 100; pointer-events: none; opacity: 0.035;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+            mix-blend-mode: overlay;
+        }
+
+        /* === Ambient blobs === */
+        .ambient-bg { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+        .ambient-blob {
+            position: absolute; border-radius: 50%;
+            filter: blur(140px); opacity: 0.18;
+        }
+        .blob-1 { width: 700px; height: 700px; background: #85adff; top: -200px; left: -200px; }
+        .blob-2 { width: 600px; height: 600px; background: #ac8aff; bottom: -100px; right: -100px; }
+
+        /* === Typography === */
+        .display-xl {
+            font-family: 'Fraunces', serif;
+            font-weight: 400;
+            font-variation-settings: "opsz" 144, "SOFT" 100;
+            line-height: 0.9;
+            letter-spacing: -0.04em;
+        }
+        .display-lg {
+            font-family: 'Fraunces', serif;
+            font-weight: 500;
+            line-height: 0.95;
+            letter-spacing: -0.03em;
+        }
+        .display-italic {
+            font-family: 'Fraunces', serif;
+            font-style: italic;
+            font-weight: 300;
+            font-variation-settings: "opsz" 144;
+        }
+        .eyebrow {
+            font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase;
+            color: #7b86a8; font-weight: 500;
+        }
+
+        /* === Text reveal (line-by-line) === */
+        .reveal-line {
+            display: block; overflow: hidden;
+        }
+        .reveal-line > span {
+            display: block;
+            transform: translateY(110%);
+            transition: transform 1s cubic-bezier(0.77, 0, 0.175, 1);
+        }
+        .visible .reveal-line > span { transform: translateY(0); }
+        .visible .reveal-line:nth-child(1) > span { transition-delay: 100ms; }
+        .visible .reveal-line:nth-child(2) > span { transition-delay: 200ms; }
+        .visible .reveal-line:nth-child(3) > span { transition-delay: 300ms; }
+        .visible .reveal-line:nth-child(4) > span { transition-delay: 400ms; }
+
+        .reveal {
+            opacity: 0; transform: translateY(40px);
+            transition: opacity 1s cubic-bezier(0.16, 1, 0.3, 1), transform 1s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .reveal.visible { opacity: 1; transform: translateY(0); }
+
+        .reveal-stagger > * {
+            opacity: 0; transform: translateY(40px);
+            transition: opacity 0.9s cubic-bezier(0.16, 1, 0.3, 1), transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .reveal-stagger.visible > *:nth-child(1) { opacity: 1; transform: translateY(0); transition-delay: 0ms; }
+        .reveal-stagger.visible > *:nth-child(2) { opacity: 1; transform: translateY(0); transition-delay: 100ms; }
+        .reveal-stagger.visible > *:nth-child(3) { opacity: 1; transform: translateY(0); transition-delay: 200ms; }
+        .reveal-stagger.visible > *:nth-child(4) { opacity: 1; transform: translateY(0); transition-delay: 300ms; }
+        .reveal-stagger.visible > *:nth-child(5) { opacity: 1; transform: translateY(0); transition-delay: 400ms; }
+        .reveal-stagger.visible > *:nth-child(6) { opacity: 1; transform: translateY(0); transition-delay: 500ms; }
+
+        /* === Marquee === */
+        .marquee {
+            display: flex;
+            overflow: hidden;
+            white-space: nowrap;
+            border-top: 1px solid rgba(42, 51, 82, 0.4);
+            border-bottom: 1px solid rgba(42, 51, 82, 0.4);
+            padding: 2.2rem 0;
+        }
+        .marquee-track {
+            display: inline-flex;
+            animation: marquee 40s linear infinite;
+        }
+        .marquee-track:hover { animation-play-state: paused; }
+        .marquee span {
+            font-family: 'Fraunces', serif;
+            font-size: clamp(3rem, 8vw, 6rem);
+            font-weight: 400;
+            padding: 0 3rem;
+            font-variation-settings: "opsz" 144;
+        }
+        .marquee .sep {
+            color: #4a5273;
+            font-style: italic;
+        }
+        @keyframes marquee {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        /* === Story card (grid featured) === */
+        .story-card {
+            position: relative;
+            overflow: hidden;
+            border-radius: 24px;
+            transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .story-card .cover {
+            position: absolute; inset: 0;
+            background: linear-gradient(135deg, var(--c1, #85adff), var(--c2, #ac8aff));
+            opacity: 0.15;
+            transition: opacity 0.6s, transform 1.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .story-card:hover .cover { opacity: 0.3; transform: scale(1.15); }
+        .story-card::after {
+            content: ''; position: absolute; inset: 0;
+            background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.1), transparent 60%);
+            pointer-events: none;
+        }
+
+        /* === Horizontal scroll === */
+        .h-scroll {
+            display: flex;
+            gap: 24px;
+            padding: 0 6vw;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+        }
+        .h-scroll > * { scroll-snap-align: start; flex-shrink: 0; }
+
+        /* === Magnetic button === */
+        .magnetic {
+            display: inline-block;
+            will-change: transform;
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .btn-circle {
+            position: relative;
+            width: 180px; height: 180px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #85adff, #6e9fff);
+            color: #060e20;
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'Fraunces', serif;
+            font-weight: 500;
+            font-size: 16px;
+            letter-spacing: 0.02em;
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            overflow: hidden;
+        }
+        .btn-circle::before {
+            content: '';
+            position: absolute; inset: 0;
+            background: linear-gradient(135deg, #ac8aff, #9093ff);
+            border-radius: 50%;
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+        .btn-circle:hover::before { opacity: 1; }
+        .btn-circle > * { position: relative; z-index: 1; }
+        .btn-circle:hover { transform: scale(1.08); box-shadow: 0 20px 60px rgba(133, 173, 255, 0.4); }
+
+        /* === Underline link === */
+        .link-underline {
+            position: relative;
+            display: inline-flex; align-items: center; gap: 8px;
+        }
+        .link-underline::after {
+            content: ''; position: absolute; left: 0; bottom: -3px;
+            width: 100%; height: 1px;
+            background: currentColor;
+            transform: scaleX(1); transform-origin: right;
+            transition: transform 0.5s cubic-bezier(0.77, 0, 0.175, 1);
+        }
+        .link-underline:hover::after {
+            transform: scaleX(0); transform-origin: right;
+            animation: underlineIn 0.5s 0.5s cubic-bezier(0.77, 0, 0.175, 1) forwards;
+        }
+        @keyframes underlineIn { to { transform: scaleX(1); transform-origin: left; } }
+
+        /* === Clip-path image reveal === */
+        .clip-reveal {
+            clip-path: inset(0 100% 0 0);
+            transition: clip-path 1.4s cubic-bezier(0.77, 0, 0.175, 1);
+        }
+        .visible .clip-reveal { clip-path: inset(0 0 0 0); }
+
+        /* === Number counter === */
+        .counter-stat {
+            font-family: 'Fraunces', serif;
+            font-weight: 400;
+            font-size: clamp(3rem, 6vw, 5rem);
+            line-height: 1;
+            font-variation-settings: "opsz" 144;
+        }
+
+        /* === Topic pill === */
+        .pill {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 14px; border-radius: 999px;
+            font-size: 11px; font-weight: 500;
+            letter-spacing: 0.05em;
+            border: 1px solid currentColor;
+            text-transform: uppercase;
+            transition: all 0.3s;
+        }
+        .pill:hover { background: currentColor; color: #060e20; }
+        .pill-muted {
+            background: transparent;
+            color: #7b86a8;
+            border-color: rgba(42, 51, 82, 0.6);
+        }
+        .pill-muted:hover { background: transparent; color: #dee5ff; border-color: #dee5ff; }
+
+        /* Topic color palette */
+        .topic-c0 { color: #85adff; }
+        .topic-c1 { color: #ac8aff; }
+        .topic-c2 { color: #6fcf97; }
+        .topic-c3 { color: #f2c94c; }
+        .topic-c4 { color: #ff716c; }
+        .topic-c5 { color: #9093ff; }
+        .topic-c6 { color: #6e9fff; }
+        .topic-c7 { color: #c8a0ff; }
+
+        /* Live pulse */
+        @keyframes pulseDot {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255, 113, 108, 0.7); }
+            50% { box-shadow: 0 0 0 8px rgba(255, 113, 108, 0); }
+        }
+        .live-dot { animation: pulseDot 1.5s infinite; }
+
+        /* Modal */
+        .modal-backdrop {
+            position: fixed; inset: 0;
+            background: rgba(6, 14, 32, 0.85);
+            backdrop-filter: blur(16px);
+            z-index: 9000;
+            display: flex; align-items: center; justify-content: center;
+            padding: 20px;
+            animation: fadeIn 0.4s ease-out;
+        }
+        .modal-content {
+            animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(30px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+        .lang-tab { position: relative; transition: all 0.2s; cursor: none; }
+        .lang-tab::after {
+            content: ''; position: absolute; bottom: -1px; left: 50%;
+            width: 0; height: 2px;
+            background: linear-gradient(90deg, var(--primary), var(--tertiary));
+            transition: all 0.3s; transform: translateX(-50%);
+        }
+        .lang-tab.active { color: var(--primary); }
+        .lang-tab.active::after { width: 100%; }
+
+        /* Arrow slide */
+        .arrow-slide { transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+        .group:hover .arrow-slide { transform: translateX(8px); }
+
+        /* Hide cursor on touch */
+        @media (hover: none) {
+            body, a, button { cursor: auto; }
+            .cursor-dot, .cursor-ring { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Preloader -->
+<div class="preloader" id="preloader">
+    <div class="preloader-label">Synthetica / 2026</div>
+    <div class="flex flex-col items-end">
+        <div class="preloader-counter" id="preloaderCounter">00</div>
+        <div class="preloader-tagline mt-4">Loading intelligence</div>
+    </div>
+</div>
+
+<!-- Custom cursor -->
+<div class="cursor-ring" id="cursorRing"></div>
+<div class="cursor-dot" id="cursorDot"></div>
+
+<!-- Ambient -->
+<div class="ambient-bg">
+    <div class="ambient-blob blob-1"></div>
+    <div class="ambient-blob blob-2"></div>
+</div>
+<div class="noise"></div>
+
+<!-- Header -->
+<header class="fixed top-0 left-0 right-0 z-50 px-[6vw] py-6 flex items-center justify-between mix-blend-difference">
+    <a href="landing.html" class="flex items-center gap-3">
+        <div class="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-tertiary"></div>
+        <div>
+            <div class="font-display text-base font-medium tracking-tight">Synthetica</div>
+            <div class="eyebrow text-[9px]">News Intelligence</div>
+        </div>
+    </a>
+
+    <nav class="hidden md:flex items-center gap-10 text-sm">
+        <a href="#work" class="link-underline data-cursor text-on-surface">Work</a>
+        <a href="#topics" class="link-underline data-cursor text-on-surface">Topics</a>
+        <a href="user.html" class="link-underline data-cursor text-on-surface">Feed</a>
+        <a href="index.html" class="link-underline data-cursor text-on-surface">Admin</a>
+    </nav>
+
+    <div class="flex items-center gap-4">
+        <select id="langSelect" class="bg-transparent border-b border-outline/50 text-xs uppercase tracking-widest outline-none data-cursor">
+            <option value="en">EN</option>
+            <option value="vi">VI</option>
+            <option value="kr">KR</option>
+        </select>
+    </div>
+</header>
+
+<!-- Live ticker -->
+<div class="fixed top-0 left-0 right-0 z-40 border-b border-outline/20 bg-canvas/60 backdrop-blur-md" style="margin-top: 80px;">
+    <div class="flex items-center gap-4 px-[6vw] py-2 overflow-hidden">
+        <div class="flex items-center gap-2 flex-shrink-0">
+            <span class="w-1.5 h-1.5 rounded-full bg-accent-error live-dot"></span>
+            <span class="text-[10px] uppercase font-semibold tracking-[0.2em] text-accent-error">Live</span>
+        </div>
+        <div class="flex-1 overflow-hidden" style="mask-image: linear-gradient(90deg, transparent, black 40px, black calc(100% - 40px), transparent);">
+            <div id="ticker" class="marquee-track whitespace-nowrap" style="animation: marquee 50s linear infinite;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- HERO -->
+<section class="relative min-h-screen flex flex-col justify-center px-[6vw] pt-36 pb-16">
+    <div class="reveal" data-reveal>
+        <div class="eyebrow mb-8">— Edition 04.26 / Issue 001</div>
+    </div>
+
+    <h1 class="display-xl text-[clamp(4rem,13vw,16rem)] mb-12 reveal" data-reveal>
+        <span class="reveal-line"><span id="heroWord1">News that</span></span>
+        <span class="reveal-line"><span class="display-italic text-gradient" id="heroWord2">actually</span></span>
+        <span class="reveal-line"><span id="heroWord3">matters.</span></span>
+    </h1>
+
+    <div class="grid grid-cols-12 gap-8 items-end">
+        <div class="col-span-12 md:col-span-5 reveal" data-reveal>
+            <p class="text-lg text-on-surface-muted leading-relaxed mb-8" id="heroDesc">
+                An editorial intelligence engine. We classify, summarize, and translate thousands of stories every day — so you only read what counts.
+            </p>
+        </div>
+
+        <div class="col-span-12 md:col-span-4 reveal" data-reveal>
+            <div class="eyebrow mb-4">Today's Top Story</div>
+            <div id="heroArticle" class="border-l border-outline/50 pl-6 group cursor-pointer">
+                <!-- filled by JS -->
+            </div>
+        </div>
+
+        <div class="col-span-12 md:col-span-3 flex md:justify-end reveal" data-reveal>
+            <a href="#work" class="magnetic data-cursor btn-circle">
+                <div class="flex flex-col items-center gap-1">
+                    <span>Explore</span>
+                    <span class="material-icons-outlined" style="font-size: 18px;">arrow_downward</span>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Bottom stats -->
+    <div class="mt-24 grid grid-cols-2 md:grid-cols-4 gap-8 reveal-stagger" data-reveal>
+        <div>
+            <div class="eyebrow mb-2">Total</div>
+            <div class="counter-stat" id="statTotal">00</div>
+        </div>
+        <div>
+            <div class="eyebrow mb-2">Relevant</div>
+            <div class="counter-stat" id="statRelevant">00</div>
+        </div>
+        <div>
+            <div class="eyebrow mb-2">Projects</div>
+            <div class="counter-stat" id="statProjects">00</div>
+        </div>
+        <div>
+            <div class="eyebrow mb-2">Sources</div>
+            <div class="counter-stat" id="statSources">00</div>
+        </div>
+    </div>
+</section>
+
+<!-- Marquee -->
+<section class="py-8">
+    <div class="marquee">
+        <div class="marquee-track">
+            <span>Intelligence</span><span class="sep">·</span>
+            <span class="display-italic">Curated</span><span class="sep">·</span>
+            <span>Translated</span><span class="sep">·</span>
+            <span class="display-italic">Analyzed</span><span class="sep">·</span>
+            <span>Classified</span><span class="sep">·</span>
+            <span>Intelligence</span><span class="sep">·</span>
+            <span class="display-italic">Curated</span><span class="sep">·</span>
+            <span>Translated</span><span class="sep">·</span>
+            <span class="display-italic">Analyzed</span><span class="sep">·</span>
+            <span>Classified</span><span class="sep">·</span>
+        </div>
+    </div>
+</section>
+
+<!-- FEATURED -->
+<section id="work" class="pt-24 pb-32">
+    <div class="px-[6vw] mb-20 flex items-end justify-between reveal" data-reveal>
+        <div>
+            <div class="eyebrow mb-4">001 — Featured</div>
+            <h2 class="display-lg text-[clamp(2.5rem,7vw,7rem)]">
+                <span class="reveal-line"><span>Selected</span></span>
+                <span class="reveal-line"><span class="display-italic">stories.</span></span>
+            </h2>
+        </div>
+        <a href="user.html" class="hidden md:block link-underline text-sm data-cursor">View all</a>
+    </div>
+
+    <div id="featuredScroll" class="h-scroll reveal" data-reveal></div>
+</section>
+
+<!-- SPLIT SECTION -->
+<section class="px-[6vw] py-32">
+    <div class="grid grid-cols-12 gap-8">
+        <div class="col-span-12 md:col-span-5 reveal" data-reveal>
+            <div class="eyebrow mb-6">002 — Approach</div>
+            <h2 class="display-lg text-[clamp(2rem,5vw,5rem)] mb-8">
+                <span class="reveal-line"><span>Read less.</span></span>
+                <span class="reveal-line"><span class="display-italic">Know more.</span></span>
+            </h2>
+        </div>
+        <div class="col-span-12 md:col-span-6 md:col-start-7 reveal" data-reveal>
+            <p class="text-xl text-on-surface-muted leading-relaxed mb-10">
+                AI agents scan hundreds of sources in real time. They classify each story by relevance, summarize the essentials, and translate into your language — all before you open the app.
+            </p>
+            <div class="grid grid-cols-2 gap-8">
+                <div>
+                    <div class="counter-stat text-gradient" id="approachStat1">92%</div>
+                    <div class="eyebrow mt-2">Average relevance</div>
+                </div>
+                <div>
+                    <div class="counter-stat text-gradient">4x</div>
+                    <div class="eyebrow mt-2">Faster than reading raw</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- TOPICS -->
+<section id="topics" class="px-[6vw] py-32 border-t border-outline/20">
+    <div class="mb-20 reveal" data-reveal>
+        <div class="eyebrow mb-4">003 — Topics</div>
+        <h2 class="display-lg text-[clamp(2.5rem,7vw,7rem)]">
+            <span class="reveal-line"><span>By</span></span>
+            <span class="reveal-line"><span class="display-italic">theme.</span></span>
+        </h2>
+    </div>
+
+    <div id="topicsList" class="reveal-stagger flex flex-wrap gap-3" data-reveal></div>
+</section>
+
+<!-- TIMELINE -->
+<section class="px-[6vw] py-32 border-t border-outline/20">
+    <div class="flex items-end justify-between mb-20 reveal" data-reveal>
+        <div>
+            <div class="eyebrow mb-4">004 — Pulse</div>
+            <h2 class="display-lg text-[clamp(2.5rem,6vw,6rem)]">
+                <span class="reveal-line"><span>Today's</span></span>
+                <span class="reveal-line"><span class="display-italic">timeline.</span></span>
+            </h2>
+        </div>
+    </div>
+
+    <div id="timeline" class="reveal relative" data-reveal></div>
+</section>
+
+<!-- CTA -->
+<section class="px-[6vw] py-40 border-t border-outline/20 text-center">
+    <div class="reveal" data-reveal>
+        <div class="eyebrow mb-8">005 — Enter</div>
+        <h2 class="display-xl text-[clamp(4rem,12vw,12rem)] mb-12">
+            <span class="reveal-line"><span>Ready</span></span>
+            <span class="reveal-line"><span class="display-italic text-gradient">to read?</span></span>
+        </h2>
+        <a href="user.html" class="magnetic data-cursor inline-flex items-center gap-4 text-lg link-underline">
+            <span>Open the feed</span>
+            <span class="material-icons-outlined arrow-slide" style="font-size: 20px;">arrow_forward</span>
+        </a>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer class="px-[6vw] py-12 border-t border-outline/20 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-on-surface-muted">
+    <div class="flex items-center gap-3">
+        <div class="w-2 h-2 rounded-full bg-gradient-to-br from-primary to-tertiary"></div>
+        <span>Synthetica · © 2026</span>
+    </div>
+    <div class="flex items-center gap-8">
+        <a href="user.html" class="data-cursor hover:text-on-surface transition">Feed</a>
+        <a href="index.html" class="data-cursor hover:text-on-surface transition">Admin</a>
+        <a href="components.html" class="data-cursor hover:text-on-surface transition">Components</a>
+        <span>v0.1.0</span>
+    </div>
+</footer>
+
+<div id="modal" class="hidden"></div>
+
+<style>
+    .text-gradient {
+        background: linear-gradient(135deg, #85adff, #ac8aff, #9093ff);
+        -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    }
+</style>
+
+<script src="js/mock_data.js"></script>
+<script src="js/api.js"></script>
+<script src="js/landing.js"></script>
+</body>
+</html>
