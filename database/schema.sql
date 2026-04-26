@@ -40,6 +40,8 @@ CREATE TABLE na_news_sites (
 CREATE TABLE na_processed_articles (
     id                      BIGINT        NOT NULL AUTO_INCREMENT PRIMARY KEY,
     project_name            VARCHAR(100)  NOT NULL,
+    project_id              CHAR(36)      NULL
+        COMMENT 'References na_project_runtime_configs.project_id (UUID v4)',
     site_id                 VARCHAR(50)   NOT NULL,
     source_language         VARCHAR(10)   NULL,
     article_url             VARCHAR(500)  NOT NULL,
@@ -66,6 +68,7 @@ CREATE TABLE na_processed_articles (
 
     UNIQUE INDEX uq_article_url (article_url(191)),
     INDEX idx_project_name (project_name),
+    INDEX idx_project_id (project_id),
     INDEX idx_site_id (site_id),
     INDEX idx_is_relevant (is_relevant),
     INDEX idx_published_at (published_at),
@@ -116,15 +119,19 @@ CREATE TABLE na_scheduler_configs (
 -- ============================================================
 CREATE TABLE na_project_runtime_configs (
     project_name    VARCHAR(100)  NOT NULL PRIMARY KEY,
+    project_id      CHAR(36)      NOT NULL
+        COMMENT 'UUID v4 project identifier',
     version         VARCHAR(50)   NULL,
     enabled         TINYINT(1)    NOT NULL DEFAULT 1,
     require_approval TINYINT(1)   NOT NULL DEFAULT 1,
-    run_status      VARCHAR(20)  NOT NULL DEFAULT 'idle',
-    last_run_at     DATETIME     NULL,
-    last_run_duration INT        NULL,
+    run_status      VARCHAR(20)   NOT NULL DEFAULT 'idle',
+    last_run_at     DATETIME      NULL,
+    last_run_duration INT         NULL,
     metadata        TEXT          NULL,
     created_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    UNIQUE KEY uq_project_id (project_id)
 ) ENGINE=InnoDB;
 
 -- ============================================================
@@ -236,6 +243,9 @@ CREATE TABLE na_accepted_article_translations (
 -- ============================================================
 -- Sample data - News Sites
 -- ============================================================
+INSERT INTO na_news_sites (site_id, name, latest_page_url, active)
+VALUES ('manual', 'Manual Entry', 'manual', 0);
+
 INSERT INTO na_news_sites (site_id, name, latest_page_url, domain, category, language, last_crawled_at, project_name, relevance_threshold, target_languages, active, listing_selector, content_selector, article_url_pattern)
 VALUES
     ('tn-legal-1', 'Bao Thanh Nien', 'https://thanhnien.vn/tin-moi.htm', 'thanhnien.vn', 'legal', 'vi', '2026-04-07 00:00:00', 'legal_task', 70, '["vi","en","ko"]', 1, 'div.box-category-middle.list__main_check', 'div.detail-cmain', '-185\\d+\\.htm$'),
@@ -253,11 +263,11 @@ VALUES
 -- ============================================================
 -- Sample data - Project Runtime Configs
 -- ============================================================
-INSERT INTO na_project_runtime_configs (project_name, version, enabled, require_approval, metadata)
+INSERT INTO na_project_runtime_configs (project_name, project_id, version, enabled, require_approval, metadata)
 VALUES
-    ('legal_task', '2026-04-07.1', 1, 1, '{"description": "Legal monitoring workflow", "owner": "legal-team"}'),
-    ('er_task', '2026-04-07.1', 1, 0, '{"description": "ER monitoring workflow", "owner": "ops-team"}'),
-    ('legal_task_report', '2026-04-08.1', 1, 0, '{"description": "Legal reporting workflow", "owner": "legal-team"}');
+    ('legal_task',        UUID(), '2026-04-07.1', 1, 1, '{"description": "Legal monitoring workflow", "owner": "legal-team"}'),
+    ('er_task',           UUID(), '2026-04-07.1', 1, 0, '{"description": "ER monitoring workflow", "owner": "ops-team"}'),
+    ('legal_task_report', UUID(), '2026-04-08.1', 1, 0, '{"description": "Legal reporting workflow", "owner": "legal-team"}');
 
 -- Sample data - Agent Configs
 INSERT INTO na_agent_configs (project_name, agent_key, role, goal, backstory, tools, llm, verbose, allow_delegation, enabled)

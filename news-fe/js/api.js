@@ -1,146 +1,121 @@
 /**
- * API Client — all data access goes through here.
- *
- * Currently returns mock data wrapped in Promises to simulate async.
- * When real backend is ready, replace each method body with `fetch(...)`.
- *
- * Example migration:
- *   getProjects() { return fetch('/api/projects').then(r => r.json()); }
+ * API Client — tất cả data access đi qua đây.
+ * Backend: news-fe/api/index.php (PHP + MySQL)
+ * Đổi API_BASE nếu deploy sang domain khác.
  */
 
-const API_BASE = 'http://127.0.0.1:8000';  // Python backend (unused in mock mode)
-const MOCK_DELAY = 100;  // Simulate network latency (ms)
+const API_BASE = '/api/index.php';
 
-function delay(data) {
-    return new Promise(resolve => setTimeout(() => resolve(data), MOCK_DELAY));
+async function apiFetch(path, options = {}) {
+    const url = `${API_BASE}?path=${path}`;
+    const res = await fetch(url, {
+        headers: { 'Content-Type': 'application/json' },
+        ...options,
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    return res.json();
 }
 
+const get  = (path, qs = '') => apiFetch(path + qs);
+const post = (path, body)    => apiFetch(path, { method: 'POST', body: JSON.stringify(body) });
+const put  = (path, body)    => apiFetch(path, { method: 'PUT',  body: JSON.stringify(body) });
+const del  = (path)          => apiFetch(path, { method: 'DELETE' });
+
 const Api = {
-    // ========== Projects ==========
-    async getProjects() {
-        // TODO: return fetch(`${API_BASE}/runtime-configs`).then(r => r.json()).then(j => j.data);
-        return delay(MockData.projects);
-    },
+    // ── Projects ──────────────────────────────────────────────────────────────
+    getProjects()                  { return get('projects'); },
+    getProject(name)               { return get(`projects/${name}`); },
+    createProject(body)            { return post('projects', body); },
+    updateProject(name, body)      { return put(`projects/${name}`, body); },
+    deleteProject(name)            { return del(`projects/${name}`); },
 
-    async getProject(name) {
-        // TODO: return fetch(`${API_BASE}/projects/${name}/runtime-config`).then(r => r.json());
-        const p = MockData.projects.find(x => x.project_name === name);
-        if (!p) return delay(null);
-        return delay({
-            ...p,
-            agents: MockData.agents[name] || [],
-            tasks: MockData.tasks[name] || [],
-        });
+    // ── Agents ────────────────────────────────────────────────────────────────
+    getAgents(project)             { return get(`projects/${project}/agents`); },
+    saveAgent(project, payload, originalKey) {
+        return originalKey
+            ? put(`projects/${project}/agents/${originalKey}`, payload)
+            : post(`projects/${project}/agents`, payload);
     },
+    deleteAgent(project, key)      { return del(`projects/${project}/agents/${key}`); },
 
-    // ========== Agents ==========
-    async getAgents(projectName) {
-        return delay(MockData.agents[projectName] || []);
+    // ── Tasks ─────────────────────────────────────────────────────────────────
+    getTasks(project)              { return get(`projects/${project}/tasks`); },
+    saveTask(project, payload, originalKey) {
+        return originalKey
+            ? put(`projects/${project}/tasks/${originalKey}`, payload)
+            : post(`projects/${project}/tasks`, payload);
     },
+    deleteTask(project, key)       { return del(`projects/${project}/tasks/${key}`); },
 
-    async saveAgent(projectName, payload, originalKey) {
-        console.log('[API mock] saveAgent', { projectName, payload, originalKey });
-        return delay({ ok: true });
-    },
+    // ── Email Recipients ──────────────────────────────────────────────────────
+    getEmails(project)             { return get(`projects/${project}/email-recipients`); },
+    addEmail(project, payload)     { return post(`projects/${project}/email-recipients`, payload); },
+    deleteEmail(project, id)       { return del(`projects/${project}/email-recipients/${id}`); },
 
-    async deleteAgent(projectName, agentKey) {
-        console.log('[API mock] deleteAgent', { projectName, agentKey });
-        return delay({ ok: true });
-    },
+    // ── Access Control ────────────────────────────────────────────────────────
+    getAccess(project)             { return get(`projects/${project}/access`); },
+    grantAccess(project, payload)  { return post(`projects/${project}/access`, payload); },
+    revokeAccess(project, id)      { return del(`projects/${project}/access/${id}`); },
 
-    // ========== Tasks ==========
-    async getTasks(projectName) {
-        return delay(MockData.tasks[projectName] || []);
+    // ── News Sources ──────────────────────────────────────────────────────────
+    getSources(project) {
+        const qs = project ? `&project_name=${encodeURIComponent(project)}` : '';
+        return get('news-sites', qs);
     },
+    saveSource(payload, originalId) {
+        return originalId
+            ? put(`news-sites/${originalId}`, payload)
+            : post('news-sites', payload);
+    },
+    deleteSource(siteId)           { return del(`news-sites/${siteId}`); },
 
-    async saveTask(projectName, payload, originalKey) {
-        console.log('[API mock] saveTask', { projectName, payload, originalKey });
-        return delay({ ok: true });
+    // ── Schedulers ────────────────────────────────────────────────────────────
+    getSchedulers(project) {
+        const qs = project ? `&project_name=${encodeURIComponent(project)}` : '';
+        return get('scheduler/configs', qs);
     },
+    saveScheduler(payload, originalJobId) {
+        return originalJobId
+            ? put(`scheduler/configs/${originalJobId}`, payload)
+            : post('scheduler/configs', payload);
+    },
+    deleteScheduler(jobId)         { return del(`scheduler/configs/${jobId}`); },
 
-    async deleteTask(projectName, taskKey) {
-        console.log('[API mock] deleteTask', { projectName, taskKey });
-        return delay({ ok: true });
+    // ── Articles ──────────────────────────────────────────────────────────────
+    getArticles(filters = {}) {
+        let qs = '';
+        if (filters.project_name) qs += `&project_name=${encodeURIComponent(filters.project_name)}`;
+        if (filters.status)       qs += `&status=${encodeURIComponent(filters.status)}`;
+        if (filters.is_relevant !== undefined) qs += `&is_relevant=${filters.is_relevant ? 1 : 0}`;
+        if (filters.limit)        qs += `&limit=${filters.limit}`;
+        return get('articles', qs);
     },
+    addArticle(payload)          { return post('articles', payload); },
+    updateArticle(id, payload)   { return put(`articles/${id}`, payload); },
+    deleteArticle(id)            { return del(`articles/${id}`); },
 
-    // ========== Email Recipients (per project) ==========
-    async getEmails(projectName) {
-        return delay(MockData.emails[projectName] || []);
+    // ── Logs ─────────────────────────────────────────────────────────────────
+    getLogs(project, filters) {
+        var qs = '';
+        if (filters && filters.agent_key) qs += '&agent_key=' + encodeURIComponent(filters.agent_key);
+        if (filters && filters.status)    qs += '&status='    + encodeURIComponent(filters.status);
+        if (filters && filters.limit)     qs += '&limit='     + filters.limit;
+        return get('projects/' + project + '/logs', qs);
     },
+    getLog(project, id)            { return get('projects/' + project + '/logs/' + id); },
+    createLog(project, payload)    { return post('projects/' + project + '/logs', payload); },
+    updateLog(project, id, payload){ return put('projects/' + project + '/logs/' + id, payload); },
+    deleteLog(project, id)         { return del('projects/' + project + '/logs/' + id); },
 
-    async addEmail(projectName, payload) {
-        console.log('[API mock] addEmail', { projectName, payload });
-        return delay({ ok: true, id: Date.now() });
+    // ── Users (Admin) ─────────────────────────────────────────────────────────
+    getUsers()                     { return get('users'); },
+    saveUser(payload, originalId) {
+        return originalId
+            ? put(`users/${originalId}`, payload)
+            : post('users', payload);
     },
-
-    async deleteEmail(id) {
-        console.log('[API mock] deleteEmail', id);
-        return delay({ ok: true });
-    },
-
-    // ========== Access Control ==========
-    async getAccess(projectName) {
-        return delay(MockData.access[projectName] || []);
-    },
-
-    async grantAccess(projectName, payload) {
-        console.log('[API mock] grantAccess', { projectName, payload });
-        return delay({ ok: true });
-    },
-
-    async revokeAccess(id) {
-        console.log('[API mock] revokeAccess', id);
-        return delay({ ok: true });
-    },
-
-    // ========== News Sources (per project) ==========
-    async getSources(projectName) {
-        // TODO: return fetch(`${API_BASE}/news-sites?project_name=${projectName}`).then(r => r.json()).then(j => j.data);
-        if (projectName) {
-            return delay(MockData.sources.filter(s => s.project_name === projectName));
-        }
-        return delay(MockData.sources);
-    },
-
-    async saveSource(payload, originalId) {
-        console.log('[API mock] saveSource', { payload, originalId });
-        return delay({ ok: true });
-    },
-
-    async deleteSource(siteId) {
-        console.log('[API mock] deleteSource', siteId);
-        return delay({ ok: true });
-    },
-
-    // ========== Schedulers (per project) ==========
-    async getSchedulers(projectName) {
-        // TODO: return fetch(`${API_BASE}/scheduler/configs?project_name=${projectName}`).then(r => r.json()).then(j => j.data);
-        if (projectName) {
-            return delay(MockData.schedulers.filter(s => s.project_name === projectName));
-        }
-        return delay(MockData.schedulers);
-    },
-
-    async saveScheduler(payload, originalJobId) {
-        console.log('[API mock] saveScheduler', { payload, originalJobId });
-        return delay({ ok: true });
-    },
-
-    async deleteScheduler(jobId) {
-        console.log('[API mock] deleteScheduler', jobId);
-        return delay({ ok: true });
-    },
-
-    async reloadScheduler() {
-        console.log('[API mock] reloadScheduler');
-        return delay({ ok: true });
-    },
-
-    // ========== Articles ==========
-    async getArticles(filters = {}) {
-        let list = MockData.articles;
-        if (filters.project_name) list = list.filter(a => a.project_name === filters.project_name);
-        if (filters.is_relevant !== undefined) list = list.filter(a => a.is_relevant === filters.is_relevant);
-        return delay(list);
-    },
+    deleteUser(id)                 { return del(`users/${id}`); },
 };

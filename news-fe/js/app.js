@@ -1,5 +1,4 @@
 const app = document.getElementById('app');
-const projectsNav = document.getElementById('projects-nav');
 
 function parseHash() {
     const hash = location.hash.slice(1) || 'dashboard';
@@ -10,7 +9,7 @@ function parseHash() {
 
 async function navigate() {
     const { path, params } = parseHash();
-    await renderSidebar(path, params);
+    renderSidebar(path);
 
     app.classList.remove('animate-fade-in');
     void app.offsetWidth;
@@ -18,42 +17,33 @@ async function navigate() {
 
     const main = path.split('/')[0];
     switch (main) {
-        case 'dashboard':          await renderDashboard(); break;
-        case 'project':            await renderProject(params.get('name'), params.get('tab') || 'agents'); break;
-        case 'admin-general':      renderAdminGeneral(); break;
-        case 'admin-users':        renderAdminUsers(); break;
-        case 'admin-llm':          renderAdminLlm(); break;
-        case 'admin-integrations': renderAdminIntegrations(); break;
-        case 'admin-audit':        renderAdminAudit(); break;
-        default:                   await renderDashboard();
+        case 'dashboard':    await renderDashboard(); break;
+        case 'projects':     await renderProjects(); break;
+        case 'project':      await renderProject(params.get('name'), params.get('tab') || 'agents'); break;
+        case 'admin-general': renderAdminGeneral(); break;
+        case 'admin-users':  await renderAdminUsers(); break;
+        case 'admin-audit':  renderAdminAudit(); break;
+        default:             await renderDashboard();
     }
 }
 
-async function renderSidebar(path, params) {
-    const projects = await Api.getProjects();
-    const currentKey = path === 'project' ? 'project:' + params.get('name') : path;
-
-    projectsNav.innerHTML = projects.map(p => {
-        const active = currentKey === 'project:' + p.project_name ? 'active' : '';
-        const statusDot = p.run_status === 'running'
-            ? '<span class="relative w-1.5 h-1.5 rounded-full bg-accent-success dot-running flex-shrink-0"></span>'
-            : p.run_status === 'error'
-                ? '<span class="w-1.5 h-1.5 rounded-full bg-accent-error flex-shrink-0"></span>'
-                : '<span class="w-1.5 h-1.5 rounded-full bg-on-surface-subtle flex-shrink-0"></span>';
-        return `<a href="#project?name=${p.project_name}" data-tooltip="${p.project_name}" class="sidebar-item ${active}">
-            <span class="icon"><span class="material-icons-outlined" style="font-size: 20px;">folder_special</span></span>
-            <span class="label-text flex-1 truncate">${p.project_name}</span>
-            <span class="badge-count">${statusDot}</span>
-        </a>`;
-    }).join('');
-
+function renderSidebar(path) {
+    // Projects & Project-detail both keep "projects" active
     document.querySelectorAll('[data-nav]').forEach(el => {
-        el.classList.toggle('active', el.dataset.nav === path);
+        const key = el.dataset.nav;
+        const isActive = key === path || (key === 'projects' && path === 'project');
+        el.classList.toggle('active', isActive);
     });
 
-    // Users badge count
-    const usersBadge = document.getElementById('usersBadge');
-    if (usersBadge) usersBadge.textContent = String(MOCK_ADMIN.users.length).padStart(2, '0');
+    // Async badge updates (non-blocking)
+    Api.getProjects().then(ps => {
+        const badge = document.getElementById('projectsBadge');
+        if (badge) badge.textContent = String(ps.length).padStart(2, '0');
+    }).catch(() => {});
+    Api.getUsers().then(us => {
+        const badge = document.getElementById('usersBadge');
+        if (badge) badge.textContent = String(us.length).padStart(2, '0');
+    }).catch(() => {});
 }
 
 // ==================== Helpers ====================
@@ -460,34 +450,74 @@ async function renderDashboard() {
     });
 }
 
-// ==================== Admin — Mock data ====================
-const MOCK_ADMIN = {
-    users: [
-        { id: 1, email: 'admin@synthetica.com',  name: 'Trần Admin',      role: 'admin',  lastSeen: 'Just now',   status: 'active' },
-        { id: 2, email: 'legal@synthetica.com',  name: 'Legal Manager',   role: 'editor', lastSeen: '2h ago',     status: 'active' },
-        { id: 3, email: 'analyst@synthetica.com', name: 'Data Analyst',   role: 'viewer', lastSeen: '1d ago',     status: 'active' },
-        { id: 4, email: 'ops@synthetica.com',    name: 'Ops Lead',        role: 'editor', lastSeen: '3d ago',     status: 'inactive' },
-    ],
-    llm: [
-        { id: 1, provider: 'OpenRouter', model: 'google/gemini-2.0-flash-exp:free', status: 'active',   usage: 420, limit: 1000 },
-        { id: 2, provider: 'Ollama',     model: 'llama3.2:1b',                      status: 'active',   usage: null, limit: null },
-        { id: 3, provider: 'OpenAI',     model: 'gpt-4o-mini',                      status: 'inactive', usage: 0,   limit: null },
-    ],
-    integrations: [
-        { id: 1, name: 'SMTP',        type: 'email',       status: 'connected', icon: 'mail' },
-        { id: 2, name: 'Slack',       type: 'notification', status: 'disconnected', icon: 'chat' },
-        { id: 3, name: 'Webhook',     type: 'webhook',     status: 'connected', icon: 'webhook' },
-        { id: 4, name: 'Google Drive', type: 'storage',    status: 'disconnected', icon: 'cloud' },
-    ],
-    audit: [
-        { ts: '2026-04-23 10:32', user: 'admin@syn', action: 'agent.update',    target: 'legal_task/classifier',  ip: '192.168.1.5' },
-        { ts: '2026-04-23 10:15', user: 'admin@syn', action: 'scheduler.reload', target: '—',                     ip: '192.168.1.5' },
-        { ts: '2026-04-23 09:48', user: 'legal@syn', action: 'article.approve', target: '#128',                   ip: '10.0.0.12' },
-        { ts: '2026-04-23 09:30', user: 'admin@syn', action: 'user.add',        target: 'analyst@syn',            ip: '192.168.1.5' },
-        { ts: '2026-04-22 17:20', user: 'admin@syn', action: 'llm.configure',   target: 'openrouter',             ip: '192.168.1.5' },
-        { ts: '2026-04-22 15:05', user: 'ops@syn',   action: 'project.create',  target: 'er_task',                ip: '10.0.0.8' },
-    ],
-};
+// ==================== Projects page ====================
+async function renderProjects() {
+    app.innerHTML = `<div class="flex items-center justify-center py-20 text-on-surface-muted">
+        <span class="material-icons-outlined animate-spin mr-3">refresh</span> Loading…
+    </div>`;
+
+    const projects = await Api.getProjects();
+    const rows = await Promise.all(projects.map(async p => {
+        const [agents, tasks, sources] = await Promise.all([
+            Api.getAgents(p.project_name),
+            Api.getTasks(p.project_name),
+            Api.getSources(p.project_name),
+        ]);
+        return { ...p, agents_count: agents.length, tasks_count: tasks.length, sources_count: sources.length };
+    }));
+
+    app.innerHTML = `
+    ${pageHeader('Projects', `${projects.length} configured workflows`,
+        btnPrimary('New Project', 'openProjectModal()', 'add')
+    )}
+    ${rows.length === 0 ? emptyState('folder_special', 'No projects yet. Create your first project.') : `
+    <div class="grid grid-cols-3 gap-5">
+        ${rows.map(p => `
+        <div class="card-hover bg-surface-2/60 rounded-2xl p-6 block group card-glow-top flex flex-col">
+            <div class="flex items-start justify-between mb-5">
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-primary/20 to-tertiary/20 flex items-center justify-center">
+                        <span class="material-icons-outlined text-primary" style="font-size: 22px;">folder_special</span>
+                    </div>
+                    <div>
+                        <div class="font-semibold">${(p.metadata && p.metadata.name) ? p.metadata.name : p.project_name}</div>
+                        <div class="text-[11px] text-on-surface-muted mt-0.5 font-mono">${p.project_name} · v${p.version}</div>
+                    </div>
+                </div>
+                ${statusBadge(p.run_status)}
+            </div>
+
+            <p class="text-xs text-on-surface-muted mb-5 line-clamp-2 flex-1">${(p.metadata && p.metadata.description) || '—'}</p>
+
+            <div class="grid grid-cols-3 gap-3 mb-5">
+                <div class="text-center bg-surface-3/40 rounded-lg py-2.5">
+                    <div class="text-lg font-bold">${p.agents_count}</div>
+                    <div class="text-[10px] text-on-surface-muted uppercase tracking-wider">Agents</div>
+                </div>
+                <div class="text-center bg-surface-3/40 rounded-lg py-2.5">
+                    <div class="text-lg font-bold">${p.tasks_count}</div>
+                    <div class="text-[10px] text-on-surface-muted uppercase tracking-wider">Tasks</div>
+                </div>
+                <div class="text-center bg-surface-3/40 rounded-lg py-2.5">
+                    <div class="text-lg font-bold">${p.sources_count}</div>
+                    <div class="text-[10px] text-on-surface-muted uppercase tracking-wider">Sources</div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between pt-4 border-t border-outline/20">
+                <span class="text-xs text-on-surface-muted">${p.require_approval ? '🔒 Manual approval' : '⚡ Auto-approve'}</span>
+                <div class="flex items-center gap-2">
+                    <button onclick='openProjectEditModal(${JSON.stringify(p).replace(/'/g,"&#39;")})' class="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-surface-3/60 hover:bg-surface-4 border border-outline/30 transition">
+                        <span class="material-icons-outlined" style="font-size:14px;">edit</span> Edit
+                    </button>
+                    <button onclick="openProjectManageModal('${p.project_name}')" class="btn-primary px-3 py-1.5 rounded-lg text-xs flex items-center gap-1">
+                        Manage <span class="material-icons-outlined" style="font-size:14px;">arrow_forward</span>
+                    </button>
+                </div>
+            </div>
+        </div>`).join('')}
+    </div>`}`;
+}
 
 // ==================== Admin — General Settings ====================
 function renderAdminGeneral() {
@@ -574,26 +604,40 @@ function systemInfoRow(label, value) {
     </div>`;
 }
 
-// ==================== Admin — Users ====================
-function renderAdminUsers() {
-    const users = MOCK_ADMIN.users;
-    app.innerHTML = `
-    ${pageHeader('Users & Roles', `${users.length} users · Manage access across all projects`, btnPrimary('Invite User', "alert('Mock: invite user')", 'person_add'))}
+// ==================== Admin — Users & Access ====================
+async function renderAdminUsers() {
+    app.innerHTML = `<div class="flex items-center justify-center py-20 text-on-surface-muted">
+        <span class="material-icons-outlined animate-spin mr-3">refresh</span> Loading…
+    </div>`;
 
-    <div class="grid grid-cols-4 gap-4 mb-6">
-        ${kpiCard({ icon: 'group', label: 'Total Users', value: users.length, color: 'primary' })}
-        ${kpiCard({ icon: 'shield', label: 'Admins', value: users.filter(u => u.role === 'admin').length, color: 'tertiary' })}
-        ${kpiCard({ icon: 'edit', label: 'Editors', value: users.filter(u => u.role === 'editor').length, color: 'secondary' })}
-        ${kpiCard({ icon: 'check_circle', label: 'Active', value: users.filter(u => u.status === 'active').length, color: 'accent-success' })}
+    const [users, projects] = await Promise.all([Api.getUsers(), Api.getProjects()]);
+    const projectAccess = await Promise.all(projects.map(p => Api.getAccess(p.project_name)));
+
+    const roleStyle = { admin: 'bg-tertiary/15 text-tertiary', editor: 'bg-primary/15 text-primary', viewer: 'bg-surface-4 text-on-surface-muted' };
+
+    app.innerHTML = `
+    ${pageHeader('Users & Access', `${users.length} users · Manage who accesses which project`,
+        btnPrimary('New User', 'openUserModal()', 'person_add')
+    )}
+
+    <!-- KPI -->
+    <div class="grid grid-cols-4 gap-4 mb-8">
+        ${kpiCard({ icon: 'group',        label: 'Total Users', value: users.length,                                  color: 'primary' })}
+        ${kpiCard({ icon: 'shield',       label: 'Admins',      value: users.filter(u => u.role === 'admin').length,  color: 'tertiary' })}
+        ${kpiCard({ icon: 'edit',         label: 'Editors',     value: users.filter(u => u.role === 'editor').length, color: 'secondary' })}
+        ${kpiCard({ icon: 'check_circle', label: 'Active',      value: users.filter(u => u.status === 'active').length, color: 'accent-success' })}
     </div>
 
-    <div class="bg-surface-2/60 rounded-2xl overflow-hidden card-glow-top">
+    <!-- Users table -->
+    <div class="bg-surface-2/60 rounded-2xl overflow-hidden card-glow-top mb-10">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-outline/20">
+            <h3 class="font-display font-bold text-lg">Users</h3>
+        </div>
         <table class="w-full text-sm">
             <thead class="text-left text-on-surface-muted text-[10px] uppercase tracking-[0.15em] bg-surface-3/30">
                 <tr>
                     <th class="px-6 py-3.5">User</th>
                     <th>Role</th>
-                    <th>Last Seen</th>
                     <th>Status</th>
                     <th></th>
                 </tr>
@@ -601,11 +645,6 @@ function renderAdminUsers() {
             <tbody>
                 ${users.map(u => {
                     const initials = u.name.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
-                    const roleStyle = {
-                        admin:  'bg-tertiary/15 text-tertiary',
-                        editor: 'bg-primary/15 text-primary',
-                        viewer: 'bg-surface-4 text-on-surface-muted',
-                    }[u.role];
                     return `<tr class="border-t border-outline/20 data-row">
                         <td class="px-6 py-4">
                             <div class="flex items-center gap-3">
@@ -616,90 +655,106 @@ function renderAdminUsers() {
                                 </div>
                             </div>
                         </td>
-                        <td><span class="badge ${roleStyle}">${u.role}</span></td>
-                        <td class="text-xs text-on-surface-muted">${u.lastSeen}</td>
+                        <td><span class="badge ${roleStyle[u.role] || ''}">${u.role}</span></td>
                         <td>
                             <span class="badge ${u.status === 'active' ? 'bg-accent-success/10 text-accent-success' : 'bg-surface-4 text-on-surface-muted'}">
                                 <span class="w-1 h-1 rounded-full bg-current"></span>${u.status}
                             </span>
                         </td>
                         <td class="px-6">
-                            <button onclick="alert('Mock: edit ${u.email}')" class="text-primary hover:underline text-xs">Edit</button>
+                            <div class="flex items-center gap-3">
+                                <button onclick='openUserModal(${JSON.stringify(u)})' class="text-primary hover:underline text-xs">Edit</button>
+                                <button onclick='confirmDeleteUser(${u.id})' class="text-accent-error hover:underline text-xs">Delete</button>
+                            </div>
                         </td>
                     </tr>`;
                 }).join('')}
             </tbody>
         </table>
-    </div>`;
-}
+    </div>
 
-// ==================== Admin — LLM Providers ====================
-function renderAdminLlm() {
-    const llms = MOCK_ADMIN.llm;
-    app.innerHTML = `
-    ${pageHeader('LLM Providers', 'Configure AI model providers', btnPrimary('Add Provider', "alert('Mock')", 'add'))}
-
-    <div class="grid grid-cols-3 gap-5 mb-6">
-        ${llms.map(l => {
-            const usagePct = l.limit ? Math.round((l.usage / l.limit) * 100) : 0;
-            const icon = l.provider === 'OpenAI' ? 'psychology' : l.provider === 'Ollama' ? 'memory' : 'hub';
-            return `<div class="bg-surface-2/60 rounded-2xl p-6 card-glow-top card-hover">
-                <div class="flex items-start justify-between mb-4">
-                    <div class="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center">
-                        <span class="material-icons-outlined text-primary" style="font-size: 22px;">${icon}</span>
+    <!-- Project Access Matrix -->
+    ${sectionHeader('Project Access', 'Assign users to projects and set their roles')}
+    <div class="space-y-4">
+        ${projects.map((p, i) => {
+            const access = projectAccess[i] || [];
+            return `<div class="bg-surface-2/60 rounded-2xl p-5 card-glow-top">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                            <span class="material-icons-outlined text-primary" style="font-size: 18px;">folder_special</span>
+                        </div>
+                        <div>
+                            <div class="font-mono font-semibold">${p.project_name}</div>
+                            <div class="text-xs text-on-surface-muted">${access.length} user${access.length !== 1 ? 's' : ''} with access</div>
+                        </div>
                     </div>
-                    <span class="badge ${l.status === 'active' ? 'bg-accent-success/10 text-accent-success' : 'bg-surface-4 text-on-surface-muted'}">
-                        <span class="w-1 h-1 rounded-full bg-current"></span>${l.status}
-                    </span>
+                    <button onclick='openGrantAccessModal("${p.project_name}", ${JSON.stringify(users)})' class="flex items-center gap-1 text-primary text-xs hover:underline">
+                        <span class="material-icons-outlined" style="font-size: 16px;">person_add</span> Grant Access
+                    </button>
                 </div>
-                <div class="text-xs text-on-surface-muted uppercase tracking-wider mb-1">${l.provider}</div>
-                <div class="font-display font-bold text-lg mb-4 font-mono">${l.model}</div>
-
-                ${l.limit ? `
-                <div class="mb-3">
-                    <div class="flex items-center justify-between text-xs mb-2">
-                        <span class="text-on-surface-muted">Daily Usage</span>
-                        <span class="font-mono"><strong>${l.usage}</strong> / ${l.limit}</span>
-                    </div>
-                    <div class="h-1.5 bg-surface-4 rounded-full overflow-hidden">
-                        <div class="h-full rounded-full ${usagePct > 80 ? 'bg-accent-error' : 'bg-gradient-to-r from-primary to-tertiary'}" style="width: ${usagePct}%"></div>
-                    </div>
-                </div>` : `<div class="text-xs text-on-surface-muted mb-3">No usage limit (self-hosted)</div>`}
-
-                <button onclick="alert('Mock: configure ${l.provider}')" class="w-full mt-2 text-xs py-2 rounded-lg bg-surface-3/60 hover:bg-surface-4 transition">Configure</button>
+                ${access.length === 0
+                    ? '<div class="text-xs text-on-surface-muted pl-12">No users granted — defaults to all admins</div>'
+                    : `<div class="grid grid-cols-2 gap-2 pl-12">
+                        ${access.map(u => `
+                        <div class="flex items-center gap-3 bg-surface-3/40 px-3 py-2.5 rounded-xl">
+                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-tertiary/20 flex items-center justify-center text-xs font-semibold flex-shrink-0">
+                                ${(u.name || u.email).split(/[\s@]/).filter(Boolean).slice(0,2).map(s=>s[0].toUpperCase()).join('')}
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm truncate">${u.name || '—'}</div>
+                                <div class="text-[10px] text-on-surface-muted truncate">${u.email}</div>
+                            </div>
+                            <span class="badge ${roleStyle[u.role] || ''} text-[10px]">${u.role}</span>
+                            <button onclick='revokeProjectAccess("${p.project_name}", ${u.id})' class="text-on-surface-muted hover:text-accent-error flex-shrink-0">
+                                <span class="material-icons-outlined" style="font-size: 16px;">close</span>
+                            </button>
+                        </div>`).join('')}
+                    </div>`}
             </div>`;
         }).join('')}
     </div>`;
 }
 
-// ==================== Admin — Integrations ====================
-function renderAdminIntegrations() {
-    const intgs = MOCK_ADMIN.integrations;
-    app.innerHTML = `
-    ${pageHeader('Integrations', 'Connect external services')}
+function openUserModal(user) {
+    const d = user || { id: null, email: '', name: '', role: 'viewer', status: 'active' };
+    showModal(user ? 'Edit User' : 'New User', 'person', `
+        ${field('Name', 'u_name', d.name)}
+        ${field('Email', 'u_email', d.email)}
+        ${select('u_role', 'Role', d.role, [['admin','Admin — full access'],['editor','Editor — can modify'],['viewer','Viewer — read only']])}
+        ${select('u_status', 'Status', d.status, [['active','Active'],['inactive','Inactive']])}
+    `, async () => {
+        const payload = { name: val('u_name'), email: val('u_email'), role: val('u_role'), status: val('u_status') };
+        await Api.saveUser(payload, d.id);
+        await renderAdminUsers();
+    });
+}
 
-    <div class="grid grid-cols-2 xl:grid-cols-3 gap-5">
-        ${intgs.map(i => `
-            <div class="bg-surface-2/60 rounded-2xl p-5 card-glow-top card-hover">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center">
-                            <span class="material-icons-outlined text-secondary" style="font-size: 20px;">${i.icon}</span>
-                        </div>
-                        <div>
-                            <div class="font-semibold">${i.name}</div>
-                            <div class="text-[10px] text-on-surface-muted uppercase tracking-wider">${i.type}</div>
-                        </div>
-                    </div>
-                    <span class="badge ${i.status === 'connected' ? 'bg-accent-success/10 text-accent-success' : 'bg-surface-4 text-on-surface-muted'}">
-                        <span class="w-1 h-1 rounded-full bg-current"></span>${i.status}
-                    </span>
-                </div>
-                <button onclick="alert('Mock: configure ${i.name}')" class="w-full text-xs py-2 rounded-lg ${i.status === 'connected' ? 'bg-surface-3/60 hover:bg-surface-4' : 'btn-primary'} transition">
-                    ${i.status === 'connected' ? 'Manage' : 'Connect'}
-                </button>
-            </div>`).join('')}
-    </div>`;
+async function confirmDeleteUser(id) {
+    if (!confirm('Delete this user? This will also remove all their project access.')) return;
+    await Api.deleteUser(id);
+    await renderAdminUsers();
+}
+
+function openGrantAccessModal(projectName, users) {
+    showModal(`Grant Access — ${projectName}`, 'admin_panel_settings', `
+        <div>
+            <label class="text-xs uppercase tracking-wider text-on-surface-muted font-semibold">User</label>
+            <select id="ga_user_id" class="w-full mt-2 bg-surface-3/60 rounded-xl px-4 py-2.5 text-sm border border-outline/30">
+                ${users.map(u => `<option value="${u.id}">${u.name} (${u.email})</option>`).join('')}
+            </select>
+        </div>
+        ${select('ga_role', 'Role', 'viewer', [['viewer','Viewer — read only'],['editor','Editor — can modify'],['admin','Admin — full access']])}
+    `, async () => {
+        await Api.grantAccess(projectName, { user_id: parseInt(val('ga_user_id')), role: val('ga_role') });
+        await renderAdminUsers();
+    });
+}
+
+async function revokeProjectAccess(projectName, accessId) {
+    if (!confirm('Revoke this user\'s access?')) return;
+    await Api.revokeAccess(projectName, accessId);
+    await renderAdminUsers();
 }
 
 // ==================== Admin — Audit Log ====================
@@ -759,12 +814,13 @@ async function renderProject(name, tab) {
     ]);
 
     const tabs = [
-        { key: 'agents', label: 'Agents', icon: 'smart_toy', count: project.agents.length },
-        { key: 'tasks', label: 'Tasks', icon: 'checklist', count: project.tasks.length },
-        { key: 'sources', label: 'Sources', icon: 'language', count: sources.length },
-        { key: 'schedulers', label: 'Schedulers', icon: 'schedule', count: schedulers.length },
-        { key: 'emails', label: 'Emails', icon: 'mail', count: emails.length },
-        { key: 'access', label: 'Access', icon: 'admin_panel_settings', count: access.length },
+        { key: 'agents',     label: 'Agents',     icon: 'smart_toy',          count: project.agents.length },
+        { key: 'tasks',      label: 'Tasks',       icon: 'checklist',          count: project.tasks.length },
+        { key: 'sources',    label: 'Sources',     icon: 'language',           count: sources.length },
+        { key: 'schedulers', label: 'Schedulers',  icon: 'schedule',           count: schedulers.length },
+        { key: 'emails',     label: 'Emails',      icon: 'mail',               count: emails.length },
+        { key: 'access',     label: 'Access',      icon: 'admin_panel_settings', count: access.length },
+        { key: 'logs',       label: 'Logs',        icon: 'terminal',           count: null },
     ];
 
     app.innerHTML = `
@@ -819,15 +875,16 @@ async function renderProject(name, tab) {
         case 'schedulers': renderSchedulers(tc, schedulers, name); break;
         case 'emails':     renderEmails(tc, emails, project.tasks, name); break;
         case 'access':     renderAccess(tc, access, name); break;
+        case 'logs':       renderLogs(tc, name, project.agents); break;
     }
 }
 
 // ==================== Agents ====================
 function renderAgents(el, agents, projectName) {
     el.innerHTML = `
-    ${sectionHeader('Agents', 'AI agents powering this workflow', btnPrimary('New Agent', `openAgentModal("${projectName}")`))}
-    ${agents.length === 0 ? emptyState('smart_toy', 'No agents yet. Add your first agent to get started.') : `
-    <div class="grid grid-cols-2 gap-4">
+    ${sectionHeader('Agents', 'AI agents powering this workflow')}
+    ${agents.length === 0 ? emptyState('smart_toy', 'No agents configured.') : `
+    <div class="grid grid-cols-3 gap-4">
         ${agents.map(a => `
             <div class="card-hover bg-surface-2/60 rounded-2xl p-5 card-glow-top">
                 <div class="flex items-start justify-between mb-3">
@@ -855,7 +912,7 @@ function renderAgents(el, agents, projectName) {
 function renderTasks(el, tasks, agents, projectName) {
     const agentOpts = agents.map(a => `<option value="${a.agent_key}">${a.agent_key} — ${a.role}</option>`).join('');
     el.innerHTML = `
-    ${sectionHeader('Tasks', 'Work each agent performs', btnPrimary('New Task', `openTaskModal("${projectName}", null, \`${agentOpts.replace(/`/g, '\\`')}\`)`))}
+    ${sectionHeader('Tasks', 'Work each agent performs')}
 
     ${tasks.length === 0 ? emptyState('checklist', 'No tasks yet.') : `
     <div class="space-y-3 mb-5">
@@ -896,25 +953,26 @@ function renderSources(el, sources, projectName) {
     el.innerHTML = `
     ${sectionHeader('News Sources', `Sites crawled for <code class="text-primary font-mono text-sm">${projectName}</code>`, btnPrimary('New Source', `openSourceModal("${projectName}")`))}
     ${sources.length === 0 ? emptyState('language', 'No sources assigned yet.') : `
-    <div class="grid grid-cols-2 gap-4">
+    <div class="grid grid-cols-3 gap-4">
         ${sources.map(s => `
-            <div class="card-hover bg-surface-2/60 rounded-2xl p-5 card-glow-top">
-                <div class="flex items-start justify-between mb-3">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                            <span class="material-icons-outlined text-primary" style="font-size: 20px;">language</span>
-                        </div>
-                        <div>
-                            <div class="font-medium">${s.name}</div>
-                            <div class="text-xs text-on-surface-muted font-mono">${s.domain}</div>
-                        </div>
+            <div class="ui-card ui-card-hover ui-card-glow flex flex-col">
+                <div class="ui-card-header">
+                    <div class="ui-card-icon"><span class="material-icons-outlined">language</span></div>
+                    <div class="flex-1 min-w-0">
+                        <div class="ui-card-title truncate">${s.name || '—'}</div>
+                        <div class="ui-card-subtitle truncate">${s.domain || '—'}</div>
                     </div>
                     ${toggle(s.active)}
                 </div>
-                <div class="flex items-center gap-3 text-xs">
-                    <span class="badge bg-surface-3/60 text-on-surface-muted">${s.language}</span>
-                    <span class="badge bg-tertiary/10 text-tertiary">${s.fetch_method}</span>
-                    <button onclick='openSourceModal("${projectName}", ${JSON.stringify(s)})' class="ml-auto text-primary hover:underline">Edit</button>
+                <div class="ui-card-body text-xs font-mono truncate text-on-surface-muted mb-2" title="${s.latest_page_url || ''}">${s.latest_page_url || '—'}</div>
+                <div class="flex flex-wrap gap-1.5 mb-1">
+                    <span class="badge bg-surface-3/60 text-on-surface-muted text-[10px]">${s.language || 'vi'}</span>
+                    ${s.listing_selector ? `<span class="badge bg-tertiary/10 text-tertiary text-[10px]" title="${s.listing_selector}">CSS list</span>` : ''}
+                    ${s.content_selector ? `<span class="badge bg-primary/10 text-primary text-[10px]" title="${s.content_selector}">CSS content</span>` : ''}
+                </div>
+                <div class="ui-card-footer mt-auto">
+                    <span class="text-[11px] text-on-surface-muted font-mono truncate max-w-[70%]">${s.site_id || '—'}</span>
+                    <button onclick='openSourceModal("${projectName}", ${JSON.stringify(s).replace(/'/g,"&#39;")})' class="ui-btn ui-btn-ghost ui-btn-sm text-primary">Edit</button>
                 </div>
             </div>`).join('')}
     </div>`}`;
@@ -925,123 +983,127 @@ function renderSchedulers(el, schedulers, projectName) {
     el.innerHTML = `
     ${sectionHeader('Schedulers', `Cron jobs for <code class="text-primary font-mono text-sm">${projectName}</code>`, btnPrimary('New Job', `openSchedulerModal("${projectName}")`))}
     ${schedulers.length === 0 ? emptyState('schedule', 'No scheduled jobs.') : `
-    <div class="space-y-3">
+    <div class="grid grid-cols-3 gap-4">
         ${schedulers.map(j => `
-            <div class="card-hover bg-surface-2/60 rounded-2xl p-5 card-glow-top flex items-center gap-5">
-                <div class="w-10 h-10 rounded-lg bg-secondary/10 flex items-center justify-center flex-shrink-0">
-                    <span class="material-icons-outlined text-secondary" style="font-size: 20px;">schedule</span>
+            <div class="card-hover bg-surface-2/60 rounded-2xl p-5 card-glow-top flex flex-col gap-3">
+                <div class="flex items-center justify-between">
+                    <div class="w-10 h-10 rounded-lg bg-secondary/10 flex items-center justify-center flex-shrink-0">
+                        <span class="material-icons-outlined text-secondary" style="font-size: 20px;">schedule</span>
+                    </div>
+                    ${toggle(j.enabled)}
                 </div>
-                <div class="flex-1">
-                    <div class="font-mono font-medium">${j.job_id}</div>
-                    <div class="text-xs text-on-surface-muted mt-1">${j.trigger_type} · <span class="font-mono">${JSON.stringify(j.trigger_args)}</span> · ${j.timezone}</div>
+                <div>
+                    <div class="font-mono font-medium text-sm">${j.job_id}</div>
+                    <div class="text-xs text-on-surface-muted mt-1 capitalize">${j.trigger_type}</div>
                 </div>
-                ${toggle(j.enabled)}
-                <button onclick='openSchedulerModal("${projectName}", ${JSON.stringify(j)})' class="text-primary hover:underline text-xs">Edit</button>
+                <div class="text-[11px] font-mono bg-surface-3/40 rounded-lg px-3 py-2 text-on-surface-muted break-all">${JSON.stringify(j.trigger_args)}</div>
+                <div class="flex items-center justify-between pt-2 border-t border-outline/20">
+                    <span class="text-[11px] text-on-surface-muted">${j.timezone}</span>
+                    <button onclick='openSchedulerModal("${projectName}", ${JSON.stringify(j)})' class="text-primary hover:underline text-xs">Edit</button>
+                </div>
             </div>`).join('')}
     </div>`}`;
 }
 
 // ==================== Emails ====================
 function renderEmails(el, emails, tasks, projectName) {
-    const byTask = {};
-    emails.forEach(e => { (byTask[e.task_key] = byTask[e.task_key] || []).push(e); });
+    const taskOpts = tasks.map(t => `<option value="${t.task_key}">${t.task_key}</option>`).join('');
+    const icons  = { user: 'person', group: 'group', department: 'business' };
+    const colors = { user: 'text-primary bg-primary/10', group: 'text-tertiary bg-tertiary/10', department: 'text-secondary bg-secondary/10' };
 
     el.innerHTML = `
-    ${sectionHeader('Email Recipients', 'Who gets notified when each task completes')}
-    <div class="space-y-4">
-    ${tasks.map(t => {
-        const list = byTask[t.task_key] || [];
-        return `<div class="bg-surface-2/60 rounded-2xl p-5 card-glow-top">
-            <div class="flex justify-between items-start mb-4">
-                <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <span class="material-icons-outlined text-primary" style="font-size: 18px;">checklist</span>
-                    </div>
-                    <div>
-                        <div class="font-mono font-medium text-sm">${t.task_key}</div>
-                        <div class="text-xs text-on-surface-muted mt-0.5">via ${t.agent_key}</div>
-                    </div>
-                </div>
-                <button onclick='openEmailModal("${projectName}", "${t.task_key}")' class="text-primary text-sm hover:underline flex items-center gap-1">
-                    <span class="material-icons-outlined" style="font-size: 16px;">add</span> Add
-                </button>
-            </div>
-            ${list.length === 0 ? '<div class="text-xs text-on-surface-muted pl-12">No recipients configured</div>' :
-                `<div class="grid grid-cols-2 gap-2 pl-12">${list.map(r => {
-                    const icons = { user: 'person', group: 'group', department: 'business' };
-                    const colors = { user: 'text-primary bg-primary/10', group: 'text-tertiary bg-tertiary/10', department: 'text-secondary bg-secondary/10' };
-                    return `<div class="flex items-center gap-3 bg-surface-3/40 px-3 py-2.5 rounded-xl">
-                        <div class="w-8 h-8 rounded-lg ${colors[r.recipient_type]} flex items-center justify-center flex-shrink-0">
-                            <span class="material-icons-outlined" style="font-size: 16px;">${icons[r.recipient_type] || 'mail'}</span>
+    ${sectionHeader('Email Recipients', 'Danh sách email project sẽ gửi thông báo',
+        `<button onclick='openEmailModal("${projectName}", "", \`${taskOpts.replace(/`/g,'\\`')}\`)' class="btn-primary px-3 py-1.5 rounded-lg text-xs flex items-center gap-1">
+            <span class="material-icons-outlined" style="font-size:14px;">add</span> Add
+        </button>`
+    )}
+    ${emails.length === 0 ? emptyState('mail', 'Chưa có email nào được cấu hình.') : `
+    <div class="bg-surface-2/60 rounded-2xl overflow-hidden card-glow-top">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="border-b border-outline/30 text-left text-xs text-on-surface-muted uppercase tracking-wider">
+                    <th class="px-5 py-3">Email</th>
+                    <th class="px-5 py-3">Tên</th>
+                    <th class="px-5 py-3">Loại</th>
+                    <th class="px-5 py-3">Task</th>
+                    <th class="px-5 py-3"></th>
+                </tr>
+            </thead>
+            <tbody>
+                ${emails.map(r => `
+                <tr class="border-t border-outline/20 data-row">
+                    <td class="px-5 py-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-7 h-7 rounded-lg ${colors[r.recipient_type] || 'text-primary bg-primary/10'} flex items-center justify-center flex-shrink-0">
+                                <span class="material-icons-outlined" style="font-size:14px;">${icons[r.recipient_type] || 'mail'}</span>
+                            </div>
+                            <span class="font-mono text-xs">${r.email}</span>
                         </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="text-sm truncate">${r.email}</div>
-                            <div class="text-[10px] text-on-surface-muted uppercase tracking-wider">${r.recipient_type}</div>
-                        </div>
-                        <button onclick='removeEmailRecipient(${r.id})' class="text-on-surface-muted hover:text-accent-error">
-                            <span class="material-icons-outlined" style="font-size: 16px;">close</span>
+                    </td>
+                    <td class="px-5 py-3 text-xs">${r.name || '—'}</td>
+                    <td class="px-5 py-3"><span class="badge bg-surface-3/60 text-on-surface-muted text-[10px] uppercase">${r.recipient_type}</span></td>
+                    <td class="px-5 py-3 font-mono text-xs text-primary">${r.task_key || '—'}</td>
+                    <td class="px-5 py-3 text-right">
+                        <button onclick='removeEmailRecipient("${projectName}", ${r.id})' class="text-on-surface-muted hover:text-accent-error">
+                            <span class="material-icons-outlined" style="font-size:16px;">close</span>
                         </button>
-                    </div>`;
-                }).join('')}</div>`}
-        </div>`;
-    }).join('')}
-    </div>`;
+                    </td>
+                </tr>`).join('')}
+            </tbody>
+        </table>
+    </div>`}`;
 }
 
 // ==================== Access ====================
 function renderAccess(el, users, projectName) {
+    const roleStyle = {
+        admin:  'bg-tertiary/10 text-tertiary border-tertiary/20',
+        editor: 'bg-primary/10 text-primary border-primary/20',
+        viewer: 'bg-surface-3 text-on-surface-muted border-outline/30',
+    };
+
     el.innerHTML = `
-    ${sectionHeader('Access Control', 'Who can view or modify this project', btnPrimary('Grant Access', `openAccessModal("${projectName}")`))}
+    ${sectionHeader('Access Control', 'Knox ID có quyền truy cập project này',
+        btnPrimary('Grant Access', `openAccessModal("${projectName}")`)
+    )}
 
-    <div class="bg-surface-2/60 rounded-2xl p-5 mb-4 card-glow-top">
-        <div class="flex items-center gap-2 mb-4">
-            <span class="material-icons-outlined text-primary">verified_user</span>
-            <span class="font-semibold">Project Visibility</span>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-            <label class="cursor-pointer bg-surface-3/40 hover:bg-surface-4 p-4 rounded-xl border border-primary/40 transition">
-                <div class="flex items-center gap-3">
-                    <input type="radio" name="visibility" value="private" class="accent-primary" checked>
-                    <div>
-                        <div class="font-medium text-sm">Private</div>
-                        <div class="text-xs text-on-surface-muted">Only granted users</div>
-                    </div>
-                </div>
-            </label>
-            <label class="cursor-pointer bg-surface-3/40 hover:bg-surface-4 p-4 rounded-xl border border-transparent transition">
-                <div class="flex items-center gap-3">
-                    <input type="radio" name="visibility" value="public" class="accent-primary">
-                    <div>
-                        <div class="font-medium text-sm">Public</div>
-                        <div class="text-xs text-on-surface-muted">All admins can access</div>
-                    </div>
-                </div>
-            </label>
-        </div>
-    </div>
-
-    ${users.length === 0 ? emptyState('admin_panel_settings', 'No users granted access. Default: all admins.') : `
-    <div class="space-y-2">
-        ${users.map(u => {
-            const roleStyle = {
-                admin: 'bg-tertiary/10 text-tertiary border-tertiary/20',
-                editor: 'bg-primary/10 text-primary border-primary/20',
-                viewer: 'bg-surface-3 text-on-surface-muted border-outline/30'
-            };
-            const initials = (u.name || u.email).split(/[\s@]/).filter(Boolean).slice(0,2).map(s => s[0].toUpperCase()).join('');
-            return `<div class="bg-surface-2/60 rounded-xl p-4 flex items-center gap-4 data-row">
-                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-tertiary/20 flex items-center justify-center text-xs font-semibold">${initials}</div>
-                <div class="flex-1 min-w-0">
-                    <div class="font-medium">${u.name || '—'}</div>
-                    <div class="text-xs text-on-surface-muted truncate">${u.email}</div>
-                </div>
-                <span class="badge ${roleStyle[u.role]} border">${u.role}</span>
-                <div class="text-xs text-on-surface-muted">${u.granted_at || '—'}</div>
-                <button onclick='revokeUserAccess(${u.id})' class="text-on-surface-muted hover:text-accent-error">
-                    <span class="material-icons-outlined" style="font-size: 18px;">close</span>
-                </button>
-            </div>`;
-        }).join('')}
+    ${users.length === 0 ? emptyState('admin_panel_settings', 'Chưa có ai được cấp quyền.') : `
+    <div class="bg-surface-2/60 rounded-2xl overflow-hidden card-glow-top">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="border-b border-outline/30 text-left text-xs text-on-surface-muted uppercase tracking-wider">
+                    <th class="px-5 py-3">Knox ID</th>
+                    <th class="px-5 py-3">Tên</th>
+                    <th class="px-5 py-3">Trạng thái</th>
+                    <th class="px-5 py-3">Role</th>
+                    <th class="px-5 py-3">Ngày thêm</th>
+                    <th class="px-5 py-3">Người thêm</th>
+                    <th class="px-5 py-3"></th>
+                </tr>
+            </thead>
+            <tbody>
+                ${users.map(u => `
+                <tr class="border-t border-outline/20 data-row">
+                    <td class="px-5 py-3 font-mono text-xs font-medium">${u.knoxid || u.email || '—'}</td>
+                    <td class="px-5 py-3 text-xs">${u.name || '—'}</td>
+                    <td class="px-5 py-3">
+                        <span class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border
+                            ${u.status === 'active' ? 'bg-accent-success/10 text-accent-success border-accent-success/20' : 'bg-surface-3 text-on-surface-muted border-outline/30'}">
+                            <span class="w-1.5 h-1.5 rounded-full ${u.status === 'active' ? 'bg-accent-success' : 'bg-on-surface-muted'}"></span>
+                            ${u.status || 'active'}
+                        </span>
+                    </td>
+                    <td class="px-5 py-3"><span class="badge ${roleStyle[u.role]} border text-[11px]">${u.role}</span></td>
+                    <td class="px-5 py-3 text-xs text-on-surface-muted">${(u.granted_at || '').replace('T', ' ').slice(0, 16)}</td>
+                    <td class="px-5 py-3 text-xs text-on-surface-muted">System</td>
+                    <td class="px-5 py-3 text-right">
+                        <button onclick='revokeUserAccess("${projectName}", ${u.id})' class="text-on-surface-muted hover:text-accent-error">
+                            <span class="material-icons-outlined" style="font-size:16px;">close</span>
+                        </button>
+                    </td>
+                </tr>`).join('')}
+            </tbody>
+        </table>
     </div>`}`;
 }
 
@@ -1079,6 +1141,188 @@ async function renderArticles() {
     </div>`;
 }
 
+// ==================== Logs ====================
+async function renderLogs(el, projectName, agents) {
+    el.innerHTML = `<div class="flex items-center justify-center py-12 text-on-surface-muted">
+        <span class="material-icons-outlined animate-spin mr-2">refresh</span> Loading logs…
+    </div>`;
+
+    // filter state
+    let filterAgent  = '';
+    let filterStatus = '';
+
+    async function load() {
+        const logs = await Api.getLogs(projectName, {
+            agent_key: filterAgent  || undefined,
+            status:    filterStatus || undefined,
+            limit:     200,
+        });
+
+        const statusStyle = {
+            running:   'bg-accent-success/10 text-accent-success',
+            success:   'bg-primary/10 text-primary',
+            error:     'bg-accent-error/10 text-accent-error',
+            cancelled: 'bg-surface-4 text-on-surface-muted',
+        };
+        const statusDot = {
+            running:   '<span class="relative w-1.5 h-1.5 rounded-full bg-accent-success dot-running"></span>',
+            success:   '<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>',
+            error:     '<span class="w-1.5 h-1.5 rounded-full bg-accent-error"></span>',
+            cancelled: '<span class="w-1.5 h-1.5 rounded-full bg-on-surface-subtle"></span>',
+        };
+
+        const agentOpts = ['<option value="">All agents</option>']
+            .concat(agents.map(a => `<option value="${a.agent_key}" ${filterAgent === a.agent_key ? 'selected' : ''}>${a.agent_key}</option>`))
+            .join('');
+        const statusOpts = [
+            '<option value="">All status</option>',
+            `<option value="running"   ${filterStatus==='running'   ? 'selected':''}>Running</option>`,
+            `<option value="success"   ${filterStatus==='success'   ? 'selected':''}>Success</option>`,
+            `<option value="error"     ${filterStatus==='error'     ? 'selected':''}>Error</option>`,
+            `<option value="cancelled" ${filterStatus==='cancelled' ? 'selected':''}>Cancelled</option>`,
+        ].join('');
+
+        el.innerHTML = `
+        ${sectionHeader('Agent Run Logs', `${logs.length} entries · most recent first`)}
+
+        <!-- Filters -->
+        <div class="flex items-center gap-3 mb-5">
+            <select id="log_agent" class="bg-surface-3/60 rounded-xl px-3 py-2 text-sm border border-outline/30 font-mono">
+                ${agentOpts}
+            </select>
+            <select id="log_status" class="bg-surface-3/60 rounded-xl px-3 py-2 text-sm border border-outline/30">
+                ${statusOpts}
+            </select>
+            <button onclick="_logApplyFilter()" class="px-4 py-2 rounded-xl text-sm bg-surface-3/60 hover:bg-surface-4 border border-outline/30 transition flex items-center gap-1">
+                <span class="material-icons-outlined" style="font-size:16px;">filter_list</span> Filter
+            </button>
+            <button onclick="_logRefresh()" class="px-4 py-2 rounded-xl text-sm bg-surface-3/60 hover:bg-surface-4 border border-outline/30 transition flex items-center gap-1">
+                <span class="material-icons-outlined" style="font-size:16px;">refresh</span> Refresh
+            </button>
+        </div>
+
+        ${logs.length === 0 ? emptyState('terminal', 'No logs yet for this project.') : `
+        <div class="bg-surface-2/60 rounded-2xl overflow-hidden card-glow-top">
+            <table class="w-full text-sm">
+                <thead class="text-left text-on-surface-muted text-[10px] uppercase tracking-[0.15em] bg-surface-3/30">
+                    <tr>
+                        <th class="px-5 py-3">Agent</th>
+                        <th>Task</th>
+                        <th>Status</th>
+                        <th>Started</th>
+                        <th>Duration</th>
+                        <th>Preview</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${logs.map(l => {
+                        const dur = l.duration_ms != null
+                            ? (l.duration_ms >= 60000
+                                ? Math.round(l.duration_ms / 60000) + 'm ' + Math.round((l.duration_ms % 60000) / 1000) + 's'
+                                : (l.duration_ms / 1000).toFixed(1) + 's')
+                            : '—';
+                        const preview = l.log_preview
+                            ? l.log_preview.replace(/</g,'&lt;').replace(/>/g,'&gt;').substring(0, 80) + (l.log_preview.length >= 80 ? '…' : '')
+                            : (l.error_msg ? `<span class="text-accent-error">${l.error_msg.substring(0,80)}</span>` : '—');
+                        return `<tr class="border-t border-outline/20 data-row">
+                            <td class="px-5 py-3">
+                                <code class="text-xs font-mono text-tertiary">${l.agent_key}</code>
+                            </td>
+                            <td class="text-xs font-mono text-on-surface-muted">${l.task_key || '—'}</td>
+                            <td>
+                                <span class="badge ${statusStyle[l.status] || 'bg-surface-4 text-on-surface-muted'}">
+                                    ${statusDot[l.status] || ''} ${l.status}
+                                </span>
+                            </td>
+                            <td class="text-xs text-on-surface-muted whitespace-nowrap">${l.started_at || '—'}</td>
+                            <td class="text-xs font-mono text-on-surface-muted">${dur}</td>
+                            <td class="text-xs text-on-surface-muted max-w-xs truncate">${preview}</td>
+                            <td class="px-4">
+                                <div class="flex items-center gap-3">
+                                    <button onclick='_logView("${projectName}", ${l.id})' class="text-primary hover:underline text-xs">View</button>
+                                    <button onclick='_logDelete("${projectName}", ${l.id})' class="text-accent-error hover:underline text-xs">Del</button>
+                                </div>
+                            </td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+        </div>`}`;
+
+        // bind filter helpers in closure
+        window._logApplyFilter = function() {
+            filterAgent  = document.getElementById('log_agent').value;
+            filterStatus = document.getElementById('log_status').value;
+            load();
+        };
+        window._logRefresh = load;
+    }
+
+    window._logView = async function(proj, id) {
+        const log = await Api.getLog(proj, id);
+        showModal('Log Detail — ' + log.agent_key, 'terminal', `
+            <div class="grid grid-cols-2 gap-3 mb-4 text-xs">
+                <div class="bg-surface-3/40 rounded-lg p-3">
+                    <div class="text-on-surface-muted uppercase tracking-wider mb-1">Agent</div>
+                    <code class="text-tertiary font-mono">${log.agent_key}</code>
+                </div>
+                <div class="bg-surface-3/40 rounded-lg p-3">
+                    <div class="text-on-surface-muted uppercase tracking-wider mb-1">Task</div>
+                    <code class="font-mono">${log.task_key || '—'}</code>
+                </div>
+                <div class="bg-surface-3/40 rounded-lg p-3">
+                    <div class="text-on-surface-muted uppercase tracking-wider mb-1">Status</div>
+                    <span>${log.status}</span>
+                </div>
+                <div class="bg-surface-3/40 rounded-lg p-3">
+                    <div class="text-on-surface-muted uppercase tracking-wider mb-1">Duration</div>
+                    <span>${log.duration_ms != null ? (log.duration_ms/1000).toFixed(2)+'s' : '—'}</span>
+                </div>
+            </div>
+            ${log.error_msg ? `<div class="bg-accent-error/10 border border-accent-error/20 rounded-xl p-3 mb-3 text-xs text-accent-error font-mono whitespace-pre-wrap">${log.error_msg}</div>` : ''}
+            <div class="text-xs text-on-surface-muted uppercase tracking-wider mb-2">Log Output</div>
+            <pre class="bg-canvas/80 rounded-xl p-4 text-xs font-mono text-on-surface overflow-auto max-h-80 whitespace-pre-wrap">${(log.log_text || '(empty)').replace(/</g,'&lt;')}</pre>
+        `, () => {});
+        // remove Save button for view-only
+        document.querySelector('#modal button[onclick="_modalSubmit()"]').style.display = 'none';
+    };
+
+    window._logDelete = async function(proj, id) {
+        if (!confirm('Delete this log entry?')) return;
+        await Api.deleteLog(proj, id);
+        load();
+    };
+
+    window._logAdd = function(proj) {
+        const agentOpts2 = agents.map(a => `<option value="${a.agent_key}">${a.agent_key}</option>`).join('');
+        showModal('Add Log Entry', 'terminal', `
+            <div><label class="text-xs uppercase tracking-wider text-on-surface-muted font-semibold">Agent</label>
+                 <select id="nl_agent" class="w-full mt-2 bg-surface-3/60 rounded-xl px-4 py-2.5 text-sm border border-outline/30 font-mono">${agentOpts2}</select></div>
+            ${field('Task Key', 'nl_task', '', 'font-mono')}
+            ${field('Run ID (optional)', 'nl_run_id', '', 'font-mono')}
+            ${select('nl_status', 'Status', 'success', [['running','Running'],['success','Success'],['error','Error'],['cancelled','Cancelled']])}
+            ${field('Duration (ms)', 'nl_dur', '', 'font-mono', '3500')}
+            <div><label class="text-xs uppercase tracking-wider text-on-surface-muted font-semibold">Log Text</label>
+                 <textarea id="nl_log" rows="5" class="w-full mt-2 bg-surface-3/60 rounded-xl px-4 py-2.5 text-sm border border-outline/30 font-mono"></textarea></div>
+            ${field('Error Message', 'nl_err', '')}
+        `, async () => {
+            await Api.createLog(proj, {
+                agent_key:   val('nl_agent'),
+                task_key:    val('nl_task'),
+                run_id:      val('nl_run_id'),
+                status:      val('nl_status'),
+                duration_ms: val('nl_dur') ? parseInt(val('nl_dur')) : null,
+                log_text:    val('nl_log'),
+                error_msg:   val('nl_err'),
+            });
+            load();
+        });
+    };
+
+    await load();
+}
+
 // ==================== Modals ====================
 function openAgentModal(projectName, agent) {
     const d = agent || { agent_key: '', role: '', goal: '', backstory: '', llm: '', tools: [], verbose: false, enabled: true };
@@ -1099,7 +1343,6 @@ function openAgentModal(projectName, agent) {
             llm: val('f_llm'), verbose: check('f_verbose'), enabled: check('f_enabled'),
         };
         await Api.saveAgent(projectName, payload, agent?.agent_key);
-        alert('Agent saved (mock)\n\n' + JSON.stringify(payload, null, 2));
     });
 }
 
@@ -1120,90 +1363,250 @@ function openTaskModal(projectName, task, agentOpts) {
             output_key: val('t_output_key'), enabled: check('t_enabled'),
         };
         await Api.saveTask(projectName, payload, task?.task_key);
-        alert('Task saved (mock)\n\n' + JSON.stringify(payload, null, 2));
     });
     if (d.agent_key) document.getElementById('t_agent_key').value = d.agent_key;
 }
 
 function openSourceModal(projectName, source) {
-    const d = source || { site_id: '', name: '', domain: '', language: 'vi', fetch_method: 'listing', active: true };
+    const d = source || { site_id: '', name: '', latest_page_url: '', domain: '', language: 'vi', listing_selector: '', content_selector: '', article_url_pattern: '', active: true };
     showModal(source ? 'Edit Source' : 'New Source', 'language', `
-        ${field('Site ID', 's_site_id', d.site_id, 'font-mono')}
-        ${field('Name', 's_name', d.name)}
-        ${field('Domain', 's_domain', d.domain)}
-        <div class="grid grid-cols-2 gap-3">
-            ${select('s_language', 'Language', d.language, [['vi','Vietnamese'],['en','English'],['kr','Korean']])}
-            ${select('s_fetch_method', 'Fetch Method', d.fetch_method, [['listing','Listing (CSS)'],['sitemap','Sitemap (XML)']])}
-        </div>
+        ${field('Site ID', 's_site_id', d.site_id, 'font-mono', 'vd: tn-legal-1')}
+        ${field('Name', 's_name', d.name, '', 'Tên trang')}
+        ${field('Listing URL', 's_url', d.latest_page_url, 'font-mono', 'https://example.com/tin-moi.htm')}
+        ${field('Domain', 's_domain', d.domain, 'font-mono', 'example.com')}
+        ${select('s_language', 'Language', d.language, [['vi','Vietnamese'],['en','English'],['ko','Korean']])}
+        ${field('Listing Selector (CSS)', 's_listing_sel', d.listing_selector, 'font-mono', 'div.article-list a')}
+        ${field('Content Selector (CSS)', 's_content_sel', d.content_selector, 'font-mono', 'div.article-body')}
+        ${field('URL Pattern (regex)', 's_url_pattern', d.article_url_pattern, 'font-mono', '-\\\\d+\\\\.htm$')}
         ${checkbox('s_active', 'Active', d.active)}
     `, async () => {
         const payload = {
             project_name: projectName,
-            site_id: val('s_site_id'), name: val('s_name'), domain: val('s_domain'),
-            language: val('s_language'), fetch_method: val('s_fetch_method'), active: check('s_active'),
+            site_id: val('s_site_id'),
+            name: val('s_name'),
+            latest_page_url: val('s_url'),
+            domain: val('s_domain'),
+            language: val('s_language'),
+            listing_selector: val('s_listing_sel'),
+            content_selector: val('s_content_sel'),
+            article_url_pattern: val('s_url_pattern'),
+            active: check('s_active'),
         };
         await Api.saveSource(payload, source?.site_id);
-        alert('Source saved (mock)\n\n' + JSON.stringify(payload, null, 2));
     });
 }
 
 function openSchedulerModal(projectName, job) {
-    const d = job || { job_id: '', trigger_type: 'cron', trigger_args: {}, timezone: 'Asia/Ho_Chi_Minh', enabled: true };
-    showModal(job ? 'Edit Scheduler Job' : 'New Scheduler Job', 'schedule', `
-        ${field('Job ID', 'j_job_id', d.job_id, 'font-mono')}
-        ${select('j_trigger_type', 'Trigger Type', d.trigger_type, [['cron','Cron'],['interval','Interval']])}
-        ${field('Trigger Args (JSON)', 'j_trigger_args', JSON.stringify(d.trigger_args || {}), 'font-mono', '{"hour": "0,6,12", "minute": 0}')}
-        ${field('Timezone', 'j_timezone', d.timezone || 'Asia/Ho_Chi_Minh')}
+    const d    = job || { job_id: '', trigger_type: 'cron', trigger_args: {}, timezone: 'Asia/Ho_Chi_Minh', enabled: true };
+    const args = d.trigger_args || {};
+    const isCron = d.trigger_type !== 'interval';
+
+    const cronMinute = args.minute  !== undefined ? args.minute  : '0';
+    const cronHour   = args.hour    !== undefined ? args.hour    : '8';
+    const cronDow    = args.day_of_week !== undefined ? args.day_of_week : '*';
+    const cronDom    = args.day     !== undefined ? args.day     : '*';
+    const intHours   = args.hours   !== undefined ? args.hours   : '';
+    const intMins    = args.minutes !== undefined ? args.minutes : '30';
+    const intSecs    = args.seconds !== undefined ? args.seconds : '';
+
+    showModal(job ? 'Edit Scheduler' : 'New Scheduler', 'schedule', `
+        ${job ? `<div class="flex items-center gap-2 p-3 bg-surface-3/30 rounded-xl mb-1">
+            <span class="material-icons-outlined text-on-surface-muted" style="font-size:16px;">tag</span>
+            <span class="font-mono text-sm font-medium">${d.job_id}</span>
+            <span class="text-xs text-on-surface-muted ml-1">Job ID (auto-assigned)</span>
+        </div>` : ''}
+        ${select('j_trigger_type', 'Trigger Type', d.trigger_type, [['cron','Cron (lịch cố định)'],['interval','Interval (lặp đều)']])}
+
+        <div id="j_cron_wrap" class="${isCron ? '' : 'hidden'}">
+            <div class="text-xs text-on-surface-muted uppercase tracking-wider font-semibold mb-2 mt-1">Lịch Cron</div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="text-xs text-on-surface-muted font-semibold uppercase tracking-wider">Phút</label>
+                    <input id="j_c_min" value="${cronMinute}" placeholder="0" class="w-full mt-1.5 bg-surface-3/60 rounded-xl px-4 py-2.5 text-sm border border-outline/30 font-mono">
+                    <div class="text-[10px] text-on-surface-muted mt-1">0–59 · <code>*/15</code> = mỗi 15 phút</div>
+                </div>
+                <div>
+                    <label class="text-xs text-on-surface-muted font-semibold uppercase tracking-wider">Giờ</label>
+                    <input id="j_c_hr" value="${cronHour}" placeholder="8" class="w-full mt-1.5 bg-surface-3/60 rounded-xl px-4 py-2.5 text-sm border border-outline/30 font-mono">
+                    <div class="text-[10px] text-on-surface-muted mt-1">0–23 · <code>0,6,12,18</code> = 4 lần/ngày</div>
+                </div>
+                <div>
+                    <label class="text-xs text-on-surface-muted font-semibold uppercase tracking-wider">Ngày trong tuần</label>
+                    <select id="j_c_dow" class="w-full mt-1.5 bg-surface-3/60 rounded-xl px-4 py-2.5 text-sm border border-outline/30">
+                        <option value="*"        ${cronDow==='*'        ?'selected':''}>Mỗi ngày</option>
+                        <option value="mon-fri"  ${cronDow==='mon-fri'  ?'selected':''}>Thứ 2 – 6 (Weekday)</option>
+                        <option value="sat,sun"  ${cronDow==='sat,sun'  ?'selected':''}>Thứ 7 + CN (Weekend)</option>
+                        <option value="mon"      ${cronDow==='mon'      ?'selected':''}>Chỉ thứ 2</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs text-on-surface-muted font-semibold uppercase tracking-wider">Ngày trong tháng</label>
+                    <input id="j_c_dom" value="${cronDom}" placeholder="*" class="w-full mt-1.5 bg-surface-3/60 rounded-xl px-4 py-2.5 text-sm border border-outline/30 font-mono">
+                    <div class="text-[10px] text-on-surface-muted mt-1">* = mọi ngày · 1 = ngày đầu tháng</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="j_int_wrap" class="${isCron ? 'hidden' : ''}">
+            <div class="text-xs text-on-surface-muted uppercase tracking-wider font-semibold mb-2 mt-1">Lặp mỗi…</div>
+            <div class="grid grid-cols-3 gap-3">
+                <div>
+                    <label class="text-xs text-on-surface-muted font-semibold uppercase tracking-wider">Giờ</label>
+                    <input id="j_i_hr"  value="${intHours}" placeholder="0"  class="w-full mt-1.5 bg-surface-3/60 rounded-xl px-4 py-2.5 text-sm border border-outline/30 font-mono">
+                </div>
+                <div>
+                    <label class="text-xs text-on-surface-muted font-semibold uppercase tracking-wider">Phút</label>
+                    <input id="j_i_min" value="${intMins}"  placeholder="30" class="w-full mt-1.5 bg-surface-3/60 rounded-xl px-4 py-2.5 text-sm border border-outline/30 font-mono">
+                </div>
+                <div>
+                    <label class="text-xs text-on-surface-muted font-semibold uppercase tracking-wider">Giây</label>
+                    <input id="j_i_sec" value="${intSecs}"  placeholder="0"  class="w-full mt-1.5 bg-surface-3/60 rounded-xl px-4 py-2.5 text-sm border border-outline/30 font-mono">
+                </div>
+            </div>
+        </div>
+
+        ${select('j_timezone', 'Timezone', d.timezone || 'Asia/Ho_Chi_Minh', [
+            ['Asia/Ho_Chi_Minh','Asia/Ho_Chi_Minh (UTC+7)'],
+            ['UTC','UTC'],
+            ['Asia/Bangkok','Asia/Bangkok (UTC+7)'],
+            ['Asia/Seoul','Asia/Seoul (UTC+9)'],
+        ])}
         ${checkbox('j_enabled', 'Enabled', d.enabled)}
     `, async () => {
-        let triggerArgs;
-        try { triggerArgs = JSON.parse(val('j_trigger_args')); } catch { return alert('Invalid JSON'); }
+        const triggerType = val('j_trigger_type');
+        let triggerArgs = {};
+        if (triggerType === 'cron') {
+            const mn = val('j_c_min'), hr = val('j_c_hr'), dow = val('j_c_dow'), dom = val('j_c_dom');
+            if (mn)          triggerArgs.minute      = isNaN(mn)  ? mn  : parseInt(mn);
+            if (hr)          triggerArgs.hour        = isNaN(hr)  ? hr  : parseInt(hr);
+            if (dow && dow !== '*') triggerArgs.day_of_week = dow;
+            if (dom && dom !== '*') triggerArgs.day        = isNaN(dom) ? dom : parseInt(dom);
+        } else {
+            const h = val('j_i_hr'), m = val('j_i_min'), s = val('j_i_sec');
+            if (h && parseInt(h)) triggerArgs.hours   = parseInt(h);
+            if (m && parseInt(m)) triggerArgs.minutes = parseInt(m);
+            if (s && parseInt(s)) triggerArgs.seconds = parseInt(s);
+        }
         const payload = {
-            job_id: val('j_job_id'), project_name: projectName,
-            trigger_type: val('j_trigger_type'), trigger_args: triggerArgs,
+            project_name: projectName,
+            trigger_type: triggerType, trigger_args: triggerArgs,
             timezone: val('j_timezone'), enabled: check('j_enabled'),
         };
-        await Api.saveScheduler(payload, job?.job_id);
-        alert('Scheduler saved (mock)\n\n' + JSON.stringify(payload, null, 2));
+        await Api.saveScheduler(payload, job ? job.job_id : null);
     });
+
+    setTimeout(() => {
+        const sel = document.getElementById('j_trigger_type');
+        if (!sel) return;
+        sel.addEventListener('change', function() {
+            document.getElementById('j_cron_wrap').classList.toggle('hidden', this.value !== 'cron');
+            document.getElementById('j_int_wrap').classList.toggle('hidden', this.value === 'cron');
+        });
+    }, 0);
 }
 
-function openEmailModal(projectName, taskKey) {
+function openEmailModal(projectName, taskKey, taskOpts) {
+    const taskSel = taskOpts
+        ? `<div><label class="text-xs uppercase tracking-wider text-on-surface-muted font-semibold">Task</label>
+               <select id="e_task" class="w-full mt-2 bg-surface-3/60 rounded-xl px-4 py-2.5 text-sm border border-outline/30">${taskOpts}</select></div>`
+        : `<div><label class="text-xs uppercase tracking-wider text-on-surface-muted font-semibold">Task</label>
+               <input id="e_task" value="${taskKey}" class="w-full mt-2 bg-surface-3/40 rounded-xl px-4 py-2.5 text-sm font-mono opacity-60 border border-outline/30"></div>`;
     showModal('Add Recipient', 'mail', `
-        <div><label class="text-xs uppercase tracking-wider text-on-surface-muted font-semibold">Task</label>
-             <input value="${taskKey}" disabled class="w-full mt-2 bg-surface-3/40 rounded-xl px-4 py-2.5 text-sm font-mono opacity-60 border border-outline/30"></div>
-        ${select('e_type', 'Recipient Type', 'user', [['user','User (single person)'],['group','Group (alias email)'],['department','Department']])}
-        ${field('Email', 'e_email', '', '', 'recipient@company.com')}
-        ${field('Display Name (optional)', 'e_name', '')}
+        ${taskSel}
+        ${select('e_type', 'Recipient Type', 'user', [['user','User'],['group','Group'],['department','Department']])}
+        ${field('Knox ID / Email', 'e_knoxid', '', 'font-mono', 'e.g. nhantt hoặc team@company.com')}
+        ${field('Tên (tuỳ chọn)', 'e_name', '')}
     `, async () => {
-        const payload = { task_key: taskKey, recipient_type: val('e_type'), email: val('e_email'), name: val('e_name') };
+        const payload = { task_key: val('e_task'), recipient_type: val('e_type'), email: val('e_knoxid'), name: val('e_name') };
         await Api.addEmail(projectName, payload);
-        alert('Recipient added (mock)\n\n' + JSON.stringify(payload, null, 2));
     });
 }
 
 function openAccessModal(projectName) {
     showModal('Grant Access', 'admin_panel_settings', `
-        ${field('Email', 'a_email', '')}
-        ${field('Name (optional)', 'a_name', '')}
+        ${field('Knox ID', 'a_knoxid', '', 'font-mono', 'e.g. nhantt')}
+        ${field('Tên (tuỳ chọn)', 'a_name', '')}
         ${select('a_role', 'Role', 'viewer', [['viewer','Viewer — read only'],['editor','Editor — can modify'],['admin','Admin — full access']])}
     `, async () => {
-        const payload = { email: val('a_email'), name: val('a_name'), role: val('a_role') };
+        const payload = { knoxid: val('a_knoxid'), name: val('a_name'), role: val('a_role') };
         await Api.grantAccess(projectName, payload);
-        alert('Access granted (mock)\n\n' + JSON.stringify(payload, null, 2));
     });
 }
 
-async function removeEmailRecipient(id) {
-    if (!confirm('Remove this recipient?')) return;
-    await Api.deleteEmail(id);
-    alert('Mock: recipient ' + id + ' removed');
+function openProjectModal() {
+    showModal('New Project', 'folder_special', `
+        ${field('Project ID (slug)', 'p_name', '', 'font-mono', 'e.g. legal_task')}
+        ${field('Tên hiển thị', 'p_display_name', '', '', 'e.g. Legal Task')}
+        ${field('Version', 'p_version', '1.0.0', 'font-mono')}
+        ${field('Description', 'p_desc', '')}
+        ${field('Owner', 'p_owner', '')}
+        <div class="flex gap-6 pt-2">
+            ${checkbox('p_approval', 'Require approval', false)}
+            ${checkbox('p_enabled', 'Enabled', true)}
+        </div>
+    `, async () => {
+        const payload = {
+            project_name: val('p_name').trim().replace(/\s+/g, '_'),
+            name: val('p_display_name'),
+            version: val('p_version') || '1.0.0',
+            description: val('p_desc'),
+            owner: val('p_owner'),
+            require_approval: check('p_approval'),
+            enabled: check('p_enabled'),
+        };
+        await Api.createProject(payload);
+        await renderProjects();
+    });
 }
 
-async function revokeUserAccess(id) {
+function openProjectEditModal(p) {
+    const meta = p.metadata || {};
+    showModal('Edit Project — ' + p.project_name, 'edit', `
+        <div class="flex items-center gap-3 mb-2 p-3 bg-surface-3/30 rounded-xl">
+            <span class="material-icons-outlined text-on-surface-muted" style="font-size:18px;">folder_special</span>
+            <div class="min-w-0">
+                <div class="font-mono font-semibold">${p.project_name}</div>
+                <div class="text-xs text-on-surface-muted">Project slug — không thể thay đổi</div>
+            </div>
+        </div>
+        <div class="flex items-center gap-3 p-3 bg-surface-3/30 rounded-xl">
+            <span class="material-icons-outlined text-on-surface-muted" style="font-size:18px;">fingerprint</span>
+            <div class="min-w-0">
+                <div class="font-mono text-xs break-all text-on-surface-muted">${p.project_id || '—'}</div>
+                <div class="text-xs text-on-surface-muted">UUID — tự động tạo, không thể thay đổi</div>
+            </div>
+        </div>
+        ${field('Tên hiển thị', 'pe_display_name', meta.name || '')}
+        ${field('Version', 'pe_version', p.version || '1.0.0', 'font-mono')}
+        ${field('Description', 'pe_desc', meta.description || '')}
+        ${field('Owner', 'pe_owner', meta.owner || '')}
+        <div class="flex gap-6 pt-2">
+            ${checkbox('pe_approval', 'Require approval', !!p.require_approval)}
+            ${checkbox('pe_enabled', 'Enabled', p.enabled !== false)}
+        </div>
+    `, async () => {
+        await Api.updateProject(p.project_name, {
+            name:             val('pe_display_name'),
+            version:          val('pe_version') || '1.0.0',
+            description:      val('pe_desc'),
+            owner:            val('pe_owner'),
+            require_approval: check('pe_approval'),
+            enabled:          check('pe_enabled'),
+        });
+        await renderProjects();
+    });
+}
+
+async function removeEmailRecipient(projectName, id) {
+    if (!confirm('Remove this recipient?')) return;
+    await Api.deleteEmail(projectName, id);
+    _pm ? await _refreshProjectModal() : navigate();
+}
+
+async function revokeUserAccess(projectName, id) {
     if (!confirm('Revoke access?')) return;
-    await Api.revokeAccess(id);
-    alert('Mock: access ' + id + ' revoked');
+    await Api.revokeAccess(projectName, id);
+    _pm ? await _refreshProjectModal() : navigate();
 }
 
 // ==================== Modal helpers ====================
@@ -1243,18 +1646,338 @@ function showModal(title, icon, formHtml, onSubmit) {
                 <span class="material-icons-outlined" style="font-size: 20px;">close</span>
             </button>
         </div>
-        <div class="p-6 space-y-4 overflow-y-auto flex-1">${formHtml}</div>
+        <div class="p-6 space-y-4 overflow-y-auto flex-1">
+            <div id="modal-error" class="hidden bg-accent-error/10 border border-accent-error/30 text-accent-error rounded-xl px-4 py-3 text-sm flex items-start gap-2">
+                <span class="material-icons-outlined flex-shrink-0" style="font-size:18px;">error_outline</span>
+                <span id="modal-error-msg"></span>
+            </div>
+            ${formHtml}
+        </div>
         <div class="p-6 border-t border-outline/30 flex justify-end gap-3">
             <button onclick="closeModal()" class="px-5 py-2.5 rounded-xl text-sm bg-surface-3/60 hover:bg-surface-4 border border-outline/30 transition">Cancel</button>
-            <button onclick="_modalSubmit()" class="btn-primary px-5 py-2.5 rounded-xl text-sm">Save</button>
+            <button id="modal-save-btn" onclick="_modalSubmit()" class="btn-primary px-5 py-2.5 rounded-xl text-sm">Save</button>
         </div>
     </div>`;
     modal.classList.remove('hidden');
-    window._modalSubmit = async () => { await onSubmit(); closeModal(); navigate(); };
+    window._modalSubmit = async () => {
+        const errEl  = document.getElementById('modal-error');
+        const errMsg = document.getElementById('modal-error-msg');
+        const saveBtn = document.getElementById('modal-save-btn');
+        errEl.classList.add('hidden');
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving…';
+        try {
+            await onSubmit();
+            closeModal();
+            _pm ? await _refreshProjectModal() : navigate();
+        } catch (e) {
+            errMsg.textContent = e.message || 'Đã có lỗi xảy ra.';
+            errEl.classList.remove('hidden');
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save';
+        }
+    };
 }
 
 function closeModal() {
     document.getElementById('modal').classList.add('hidden');
+}
+
+// ==================== Articles ====================
+async function renderProjectArticles(el, projectName, requireApproval, sources) {
+    el.innerHTML = `<div class="flex items-center justify-center py-12 text-on-surface-muted">
+        <span class="material-icons-outlined animate-spin mr-2">refresh</span> Loading articles…</div>`;
+
+    let articles = [];
+    try {
+        articles = await Api.getArticles({ project_name: projectName, limit: 500 });
+    } catch(e) {
+        el.innerHTML = `<div class="text-accent-error p-4">${e.message}</div>`;
+        return;
+    }
+
+    // filter state stored on el
+    if (!el._artFilter) el._artFilter = 'all';
+
+    function articleStatusBadge(status) {
+        const s = {
+            pending:  'bg-yellow-500/10 text-yellow-400',
+            approved: 'bg-accent-success/10 text-accent-success',
+            rejected: 'bg-accent-error/10 text-accent-error',
+        };
+        return `<span class="px-2 py-0.5 rounded-md text-xs font-medium ${s[status] || 'bg-surface-4 text-on-surface-muted'}">${status}</span>`;
+    }
+
+    function scoreBadge(score) {
+        const c = score >= 70 ? 'text-accent-success' : score >= 40 ? 'text-yellow-400' : 'text-on-surface-muted';
+        return `<span class="${c} font-mono font-semibold text-sm">${score}</span>`;
+    }
+
+    function renderTable(list) {
+        if (!list.length) return emptyState('newspaper', 'Không có bài viết nào.');
+        return `<div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead><tr class="text-xs text-on-surface-muted uppercase tracking-wider border-b border-outline/20">
+                <th class="text-left pb-3 pr-4 font-semibold">Tiêu đề</th>
+                <th class="text-left pb-3 pr-4 font-semibold">Nguồn</th>
+                <th class="text-left pb-3 pr-4 font-semibold">Ngày đăng</th>
+                <th class="text-center pb-3 pr-4 font-semibold">Score</th>
+                <th class="text-center pb-3 pr-4 font-semibold">Trạng thái</th>
+                ${requireApproval ? '<th class="text-center pb-3 font-semibold">Hành động</th>' : ''}
+            </tr></thead>
+            <tbody class="divide-y divide-outline/10">
+                ${list.map(a => {
+                    const title = a.title || a.url.split('/').pop() || a.url;
+                    const shortTitle = title.length > 70 ? title.slice(0, 70) + '…' : title;
+                    const date = a.published_at_vn || (a.published_at ? a.published_at.slice(0, 10) : '—');
+                    const isPending = a.status === 'pending';
+                    const actions = requireApproval && isPending
+                        ? `<td class="text-center pb-0 pt-2">
+                            <div class="flex items-center justify-center gap-2">
+                                <button onclick="approveArticle(${a.id}, '${projectName}')"
+                                    class="px-2.5 py-1 rounded-lg text-xs bg-accent-success/10 text-accent-success hover:bg-accent-success/20 transition flex items-center gap-1">
+                                    <span class="material-icons-outlined" style="font-size:13px;">check_circle</span>Duyệt
+                                </button>
+                                <button onclick="rejectArticle(${a.id}, '${projectName}')"
+                                    class="px-2.5 py-1 rounded-lg text-xs bg-accent-error/10 text-accent-error hover:bg-accent-error/20 transition flex items-center gap-1">
+                                    <span class="material-icons-outlined" style="font-size:13px;">cancel</span>Từ chối
+                                </button>
+                            </div></td>`
+                        : requireApproval ? '<td></td>' : '';
+                    return `<tr class="hover:bg-surface-3/30 transition">
+                        <td class="py-3 pr-4 max-w-xs">
+                            <a href="${a.url}" target="_blank" rel="noopener"
+                               class="text-primary hover:underline line-clamp-2 block" title="${a.url}">${shortTitle}</a>
+                        </td>
+                        <td class="py-3 pr-4 text-on-surface-muted text-xs">${a.site_id || '—'}</td>
+                        <td class="py-3 pr-4 text-on-surface-muted text-xs whitespace-nowrap">${date}</td>
+                        <td class="py-3 pr-4 text-center">${scoreBadge(a.relevance_score)}</td>
+                        <td class="py-3 pr-4 text-center">${articleStatusBadge(a.status)}</td>
+                        ${actions}
+                    </tr>`;
+                }).join('')}
+            </tbody>
+        </table></div>`;
+    }
+
+    function getFiltered(f) {
+        if (f === 'pending')  return articles.filter(a => a.status === 'pending');
+        if (f === 'approved') return articles.filter(a => a.status === 'approved');
+        if (f === 'rejected') return articles.filter(a => a.status === 'rejected');
+        if (f === 'relevant') return articles.filter(a => a.is_relevant);
+        return articles;
+    }
+
+    function doRender() {
+        const f = el._artFilter || 'all';
+        const counts = {
+            all:      articles.length,
+            pending:  articles.filter(a => a.status === 'pending').length,
+            approved: articles.filter(a => a.status === 'approved').length,
+            rejected: articles.filter(a => a.status === 'rejected').length,
+            relevant: articles.filter(a => a.is_relevant).length,
+        };
+        const filters = [
+            { key: 'all',      label: 'Tất cả' },
+            { key: 'pending',  label: 'Chờ duyệt' },
+            { key: 'approved', label: 'Đã duyệt' },
+            { key: 'rejected', label: 'Từ chối' },
+            { key: 'relevant', label: 'Liên quan' },
+        ];
+        el.innerHTML = `
+        <div class="flex items-center justify-between mb-5">
+            <div class="flex items-center gap-2 flex-wrap">
+                ${filters.map(ft => `<button onclick="window._artSetFilter('${ft.key}')"
+                    class="px-3 py-1.5 rounded-lg text-xs font-medium transition ${f === ft.key
+                        ? 'bg-primary/10 text-primary'
+                        : 'bg-surface-3/60 text-on-surface-muted hover:bg-surface-4'}">
+                    ${ft.label}
+                    <span class="ml-1 font-mono">${counts[ft.key]}</span>
+                </button>`).join('')}
+            </div>
+            <button onclick="openAddArticleModal('${projectName}', ${JSON.stringify(sources).replace(/'/g, "&#39;")})"
+                class="btn-primary flex items-center gap-2 px-4 py-2 rounded-xl text-sm">
+                <span class="material-icons-outlined" style="font-size:17px;">add</span>Thêm bài viết
+            </button>
+        </div>
+        <div id="art-table-wrap">${renderTable(getFiltered(f))}</div>`;
+    }
+
+    window._artSetFilter = function(f) {
+        el._artFilter = f;
+        doRender();
+    };
+
+    doRender();
+}
+
+async function approveArticle(id, projectName) {
+    await Api.updateArticle(id, { status: 'approved', approved_by: 'admin' });
+    if (_pm) await _refreshProjectModal();
+}
+
+async function rejectArticle(id, projectName) {
+    await Api.updateArticle(id, { status: 'rejected', approved_by: 'admin' });
+    if (_pm) await _refreshProjectModal();
+}
+
+function openAddArticleModal(projectName, sources) {
+    const sourceOpts = [
+        ['manual', 'Manual Entry'],
+        ...(sources || []).map(s => [s.site_id, s.name || s.site_id]),
+    ];
+    showModal('Thêm bài viết', 'newspaper', `
+        ${field('URL bài viết', 'art_url', '', 'font-mono', 'https://...')}
+        ${field('Tiêu đề (tùy chọn)', 'art_title', '', '', 'Để trống hệ thống sẽ tự lấy')}
+        ${select('art_site', 'Nguồn', 'manual', sourceOpts)}
+    `, async () => {
+        const url = val('art_url').trim();
+        if (!url.startsWith('http')) throw new Error('URL không hợp lệ — phải bắt đầu bằng http/https');
+        await Api.addArticle({
+            project_name: projectName,
+            article_url:  url,
+            title:        val('art_title').trim() || null,
+            site_id:      val('art_site'),
+        });
+    });
+}
+
+// ==================== Project Manage Modal ====================
+let _pm = null; // { name, project, emails, access, sources, schedulers, tab }
+
+async function openProjectManageModal(name) {
+    const el = document.getElementById('project-modal');
+    el.innerHTML = `
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeProjectModal()"></div>
+    <div class="relative z-10 flex flex-col bg-surface-1 rounded-2xl overflow-hidden border border-outline/20 shadow-2xl animate-slide-in"
+         style="width:85%;height:80%;margin:auto;">
+        <div class="flex items-center justify-center py-10 text-on-surface-muted">
+            <span class="material-icons-outlined animate-spin mr-3">refresh</span> Loading…
+        </div>
+    </div>`;
+    el.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+
+    try {
+        const [project, emails, access, sources, schedulers] = await Promise.all([
+            Api.getProject(name), Api.getEmails(name), Api.getAccess(name),
+            Api.getSources(name), Api.getSchedulers(name),
+        ]);
+        _pm = { name, project, emails, access, sources, schedulers, tab: 'agents' };
+        _renderProjectModal();
+    } catch(e) {
+        document.querySelector('#project-modal .relative.z-10').innerHTML =
+            `<div class="p-8 text-accent-error">${e.message}</div>`;
+    }
+}
+
+function closeProjectModal() {
+    document.getElementById('project-modal').classList.add('hidden');
+    document.body.style.overflow = '';
+    _pm = null;
+}
+
+function switchProjectModalTab(key) {
+    if (!_pm) return;
+    _pm.tab = key;
+    // update tab active state
+    document.querySelectorAll('#project-modal .pm-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.key === key);
+        t.classList.toggle('text-on-surface-muted', t.dataset.key !== key);
+    });
+    const tc = document.getElementById('pm-tab-content');
+    tc.innerHTML = '';
+    _renderProjectModalTab(tc);
+}
+
+function _renderProjectModalTab(tc) {
+    const { name, project, emails, access, sources, schedulers, tab } = _pm;
+    switch (tab) {
+        case 'agents':     renderAgents(tc, project.agents, name); break;
+        case 'tasks':      renderTasks(tc, project.tasks, project.agents, name); break;
+        case 'sources':    renderSources(tc, sources, name); break;
+        case 'schedulers': renderSchedulers(tc, schedulers, name); break;
+        case 'emails':     renderEmails(tc, emails, project.tasks, name); break;
+        case 'access':     renderAccess(tc, access, name); break;
+        case 'articles':   renderProjectArticles(tc, name, project.require_approval, sources); break;
+        case 'logs':       renderLogs(tc, name, project.agents); break;
+    }
+}
+
+function _renderProjectModal() {
+    const { name, project, emails, access, sources, schedulers, tab } = _pm;
+    const tabs = [
+        { key: 'agents',     label: 'Agents',     icon: 'smart_toy',            count: project.agents.length },
+        { key: 'tasks',      label: 'Tasks',       icon: 'checklist',            count: project.tasks.length },
+        { key: 'sources',    label: 'Sources',     icon: 'language',             count: sources.length },
+        { key: 'schedulers', label: 'Schedulers',  icon: 'schedule',             count: schedulers.length },
+        { key: 'emails',     label: 'Emails',      icon: 'mail',                 count: emails.length },
+        { key: 'access',     label: 'Access',      icon: 'admin_panel_settings', count: access.length },
+        { key: 'articles',   label: 'Articles',    icon: 'newspaper',            count: null },
+        { key: 'logs',       label: 'Logs',        icon: 'terminal',             count: null },
+    ];
+
+    const panel = document.querySelector('#project-modal .relative.z-10');
+    panel.innerHTML = `
+    <!-- Modal header -->
+    <div class="flex items-start justify-between px-8 py-6 border-b border-outline/20 flex-shrink-0">
+        <div class="flex items-start gap-4">
+            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 to-tertiary/20 flex items-center justify-center flex-shrink-0">
+                <span class="material-icons-outlined text-primary" style="font-size:24px;">folder_special</span>
+            </div>
+            <div>
+                <div class="flex items-center gap-3 mb-1">
+                    <h2 class="font-display text-2xl font-extrabold tracking-tight">${project.metadata.name || project.project_name}</h2>
+                    ${statusBadge(project.run_status)}
+                </div>
+                <div class="flex items-center gap-2 mb-1">
+                    <code class="text-xs font-mono text-on-surface-muted bg-surface-3/40 px-2 py-0.5 rounded">${project.project_name}</code>
+                </div>
+                <p class="text-sm text-on-surface-muted">${project.metadata.description || '—'}</p>
+                <div class="flex items-center gap-4 mt-2 text-xs text-on-surface-muted">
+                    <span class="flex items-center gap-1"><span class="material-icons-outlined" style="font-size:13px;">commit</span>v${project.version}</span>
+                    <span>·</span>
+                    <span class="flex items-center gap-1"><span class="material-icons-outlined" style="font-size:13px;">group</span>${project.metadata.owner || '—'}</span>
+                    <span>·</span>
+                    <span>${project.require_approval ? '🔒 Manual approval' : '⚡ Auto-approve'}</span>
+                </div>
+            </div>
+        </div>
+        <button onclick="closeProjectModal()" class="w-9 h-9 rounded-xl hover:bg-surface-3 flex items-center justify-center text-on-surface-muted transition flex-shrink-0">
+            <span class="material-icons-outlined">close</span>
+        </button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="border-b border-outline/30 flex-shrink-0 px-8">
+        <div class="flex gap-1 overflow-x-auto">
+            ${tabs.map(t => `
+                <button data-key="${t.key}" onclick="switchProjectModalTab('${t.key}')"
+                    class="pm-tab tab-item ${tab === t.key ? 'active' : 'text-on-surface-muted'} px-5 py-4 text-sm flex items-center gap-2 whitespace-nowrap font-medium">
+                    <span class="material-icons-outlined" style="font-size:18px;">${t.icon}</span>
+                    ${t.label}
+                    ${t.count ? `<span class="px-1.5 py-0.5 rounded-md bg-surface-4 text-[10px] font-mono">${t.count}</span>` : ''}
+                </button>`).join('')}
+        </div>
+    </div>
+
+    <!-- Tab content -->
+    <div id="pm-tab-content" class="flex-1 overflow-y-auto p-8 animate-slide-in"></div>`;
+
+    _renderProjectModalTab(document.getElementById('pm-tab-content'));
+}
+
+// Refresh modal after CRUD ops inside it
+async function _refreshProjectModal() {
+    if (!_pm) return;
+    const name = _pm.name;
+    const tab  = _pm.tab;
+    const [project, emails, access, sources, schedulers] = await Promise.all([
+        Api.getProject(name), Api.getEmails(name), Api.getAccess(name),
+        Api.getSources(name), Api.getSchedulers(name),
+    ]);
+    _pm = { name, project, emails, access, sources, schedulers, tab };
+    _renderProjectModal();
 }
 
 // Init
