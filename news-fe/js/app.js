@@ -1,7 +1,7 @@
 const app = document.getElementById('app');
 
 function parseHash() {
-    const hash = location.hash.slice(1) || 'dashboard';
+    const hash = location.hash.slice(1) || 'projects';
     const [path, query] = hash.split('?');
     const params = new URLSearchParams(query || '');
     return { path, params };
@@ -17,13 +17,12 @@ async function navigate() {
 
     const main = path.split('/')[0];
     switch (main) {
-        case 'dashboard':    await renderDashboard(); break;
         case 'projects':     await renderProjects(); break;
         case 'project':      await renderProject(params.get('name'), params.get('tab') || 'agents'); break;
         case 'admin-general': renderAdminGeneral(); break;
         case 'admin-users':  await renderAdminUsers(); break;
         case 'admin-audit':  renderAdminAudit(); break;
-        default:             await renderDashboard();
+        default:             await renderProjects();
     }
 }
 
@@ -152,303 +151,6 @@ function btnSecondary(label, onclick, icon = '') {
     </button>`;
 }
 
-// ==================== Dashboard ====================
-async function renderDashboard() {
-    const [projects, articles] = await Promise.all([Api.getProjects(), Api.getArticles()]);
-    const total = articles.length;
-    const relevant = articles.filter(a => a.is_relevant).length;
-    const relevantPct = total ? Math.round((relevant / total) * 100) : 0;
-    const running = projects.filter(p => p.run_status === 'running').length;
-    const avgScore = total ? Math.round(articles.reduce((s, a) => s + (a.relevance_score || 0), 0) / total) : 0;
-
-    const byProject = {};
-    articles.forEach(a => byProject[a.project_name] = (byProject[a.project_name] || 0) + 1);
-
-    const projectRows = await Promise.all(projects.map(async p => {
-        const [agents, tasks, sources] = await Promise.all([
-            Api.getAgents(p.project_name), Api.getTasks(p.project_name), Api.getSources(p.project_name)
-        ]);
-        return { ...p, agents_count: agents.length, tasks_count: tasks.length, sources_count: sources.length };
-    }));
-
-    // 7-day data (simulated)
-    const days = [];
-    const dailyCounts = [];
-    for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        days.push(d.toLocaleDateString('en-US', { weekday: 'short' }));
-        dailyCounts.push(Math.floor(Math.random() * 20) + 5);
-    }
-
-    const hour = new Date().getHours();
-    const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-    const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-
-    app.innerHTML = `
-    <!-- Hero -->
-    <div class="relative mb-10 overflow-hidden">
-        <div class="absolute top-0 right-0 w-[600px] h-[400px] bg-gradient-to-br from-primary/10 via-tertiary/5 to-transparent rounded-full blur-3xl -z-10"></div>
-
-        <div class="flex items-baseline justify-between mb-3">
-            <div class="text-xs text-on-surface-muted uppercase tracking-[0.2em] font-semibold flex items-center gap-2">
-                <span class="w-1 h-1 rounded-full bg-primary"></span>
-                ${today}
-            </div>
-            <div class="flex items-center gap-2 text-xs text-on-surface-muted">
-                <span class="relative w-1.5 h-1.5 rounded-full bg-accent-success dot-running"></span>
-                <span>System operational</span>
-            </div>
-        </div>
-
-        <h1 class="font-display text-5xl xl:text-6xl font-extrabold tracking-tight leading-[1.05] mb-4">
-            ${greeting},<br>
-            <span class="text-gradient counter">${total}</span> articles today.
-        </h1>
-        <p class="text-on-surface-muted text-base max-w-2xl">
-            ${relevant} classified as relevant across ${projects.length} active projects.
-            ${running > 0 ? `<span class="text-accent-success">${running} workflow currently running.</span>` : 'All workflows idle.'}
-        </p>
-    </div>
-
-    <!-- KPI cards -->
-    <div class="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-        ${kpiCard({ icon: 'feed', label: 'Total Articles', value: total, delta: '+12%', trend: 'up', color: 'primary' })}
-        ${kpiCard({ icon: 'auto_awesome', label: 'Relevant', value: relevant, delta: '+8%', trend: 'up', color: 'tertiary' })}
-        ${kpiCard({ icon: 'speed', label: 'Avg. Score', value: avgScore + '%', delta: '-2%', trend: 'down', color: 'secondary' })}
-        ${kpiCard({ icon: 'bolt', label: 'Active Runs', value: running, sub: `${projects.length - running} idle`, color: 'accent-success' })}
-    </div>
-
-    <!-- Charts grid -->
-    <div class="grid grid-cols-3 gap-5 mb-8">
-        <div class="col-span-2 bg-surface-2/60 rounded-2xl p-6 card-glow-top">
-            <div class="flex items-start justify-between mb-5">
-                <div>
-                    <h3 class="font-display font-bold text-lg">Article Volume · 7 days</h3>
-                    <p class="text-xs text-on-surface-muted mt-0.5">Daily processing across all projects</p>
-                </div>
-                <div class="flex gap-2 text-xs">
-                    <button class="px-3 py-1.5 rounded-lg bg-primary/10 text-primary font-medium">7D</button>
-                    <button class="px-3 py-1.5 rounded-lg text-on-surface-muted hover:bg-surface-3">30D</button>
-                    <button class="px-3 py-1.5 rounded-lg text-on-surface-muted hover:bg-surface-3">90D</button>
-                </div>
-            </div>
-            <div class="relative" style="height: 240px;">
-                <canvas id="chartDaily"></canvas>
-            </div>
-        </div>
-        <div class="bg-surface-2/60 rounded-2xl p-6 card-glow-top flex flex-col">
-            <div class="mb-4">
-                <h3 class="font-display font-bold text-lg">Relevance</h3>
-                <p class="text-xs text-on-surface-muted mt-0.5">Classification split</p>
-            </div>
-            <div class="relative flex-1 flex items-center justify-center" style="min-height: 180px;">
-                <canvas id="chartRelevance"></canvas>
-                <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <div class="font-display text-4xl font-extrabold text-gradient">${relevantPct}%</div>
-                    <div class="text-[10px] text-on-surface-muted uppercase tracking-[0.15em] mt-1">Relevant</div>
-                </div>
-            </div>
-            <div class="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-outline/20">
-                <div>
-                    <div class="flex items-center gap-1.5 text-xs text-on-surface-muted"><span class="w-2 h-2 rounded-full bg-primary"></span>Relevant</div>
-                    <div class="font-mono font-bold text-sm mt-0.5">${relevant}</div>
-                </div>
-                <div>
-                    <div class="flex items-center gap-1.5 text-xs text-on-surface-muted"><span class="w-2 h-2 rounded-full bg-surface-4"></span>Irrelevant</div>
-                    <div class="font-mono font-bold text-sm mt-0.5">${total - relevant}</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Per-project chart + Activity -->
-    <div class="grid grid-cols-3 gap-5 mb-8">
-        <div class="col-span-2 bg-surface-2/60 rounded-2xl p-6 card-glow-top">
-            <div class="flex items-baseline justify-between mb-5">
-                <div>
-                    <h3 class="font-display font-bold text-lg">By Project</h3>
-                    <p class="text-xs text-on-surface-muted mt-0.5">Article distribution per project</p>
-                </div>
-            </div>
-            <div class="relative" style="height: 260px;">
-                <canvas id="chartProjects"></canvas>
-            </div>
-        </div>
-        <div class="bg-surface-2/60 rounded-2xl p-6 card-glow-top">
-            <div class="flex items-center justify-between mb-4">
-                <div>
-                    <h3 class="font-display font-bold text-lg">Activity</h3>
-                    <p class="text-xs text-on-surface-muted mt-0.5">Recent events</p>
-                </div>
-                <span class="badge bg-accent-success/10 text-accent-success">Live</span>
-            </div>
-            <div class="space-y-3">
-                ${[
-                    { icon: 'play_arrow', color: 'accent-success', text: '<strong>legal_task</strong> started', time: '2m ago' },
-                    { icon: 'check_circle', color: 'primary', text: '12 articles classified', time: '5m ago' },
-                    { icon: 'mail', color: 'tertiary', text: 'Report emailed', time: '14m ago' },
-                    { icon: 'schedule', color: 'secondary', text: 'Scheduler reloaded', time: '1h ago' },
-                    { icon: 'person_add', color: 'accent-warning', text: 'User <strong>editor@co</strong> added', time: '3h ago' },
-                ].map(e => `
-                    <div class="flex items-start gap-3">
-                        <div class="w-7 h-7 rounded-lg bg-${e.color}/10 flex items-center justify-center flex-shrink-0">
-                            <span class="material-icons-outlined text-${e.color}" style="font-size:14px;">${e.icon}</span>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="text-xs">${e.text}</div>
-                            <div class="text-[10px] text-on-surface-muted mt-0.5">${e.time}</div>
-                        </div>
-                    </div>`).join('')}
-            </div>
-        </div>
-    </div>
-
-    <!-- Projects grid -->
-    ${sectionHeader('Projects', `${projects.length} configured workflows`)}
-    <div class="grid grid-cols-3 gap-5 mb-10">
-        ${projectRows.map(p => `
-            <a href="#project?name=${p.project_name}" class="card-hover bg-surface-2/60 rounded-2xl p-6 block group card-glow-top">
-                <div class="flex items-start justify-between mb-5">
-                    <div class="flex items-center gap-3">
-                        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-primary/20 to-tertiary/20 flex items-center justify-center">
-                            <span class="material-icons-outlined text-primary" style="font-size: 22px;">folder_special</span>
-                        </div>
-                        <div>
-                            <div class="font-semibold">${p.project_name}</div>
-                            <div class="text-xs text-on-surface-muted mt-0.5">v${p.version}</div>
-                        </div>
-                    </div>
-                    ${statusBadge(p.run_status)}
-                </div>
-
-                <p class="text-xs text-on-surface-muted mb-5 line-clamp-2">${p.metadata.description || '—'}</p>
-
-                <div class="grid grid-cols-3 gap-3 mb-5">
-                    <div class="text-center bg-surface-3/40 rounded-lg py-2.5">
-                        <div class="text-lg font-bold">${p.agents_count}</div>
-                        <div class="text-[10px] text-on-surface-muted uppercase tracking-wider">Agents</div>
-                    </div>
-                    <div class="text-center bg-surface-3/40 rounded-lg py-2.5">
-                        <div class="text-lg font-bold">${p.tasks_count}</div>
-                        <div class="text-[10px] text-on-surface-muted uppercase tracking-wider">Tasks</div>
-                    </div>
-                    <div class="text-center bg-surface-3/40 rounded-lg py-2.5">
-                        <div class="text-lg font-bold">${p.sources_count}</div>
-                        <div class="text-[10px] text-on-surface-muted uppercase tracking-wider">Sources</div>
-                    </div>
-                </div>
-
-                <div class="flex items-center justify-between text-xs">
-                    ${p.require_approval
-                        ? '<span class="text-primary flex items-center gap-1"><span class="material-icons-outlined" style="font-size:14px;">verified_user</span> Manual approval</span>'
-                        : '<span class="text-on-surface-muted flex items-center gap-1"><span class="material-icons-outlined" style="font-size:14px;">bolt</span> Auto</span>'}
-                    <span class="text-primary group-hover:translate-x-1 transition-transform flex items-center gap-1">Manage <span class="material-icons-outlined" style="font-size:14px;">arrow_forward</span></span>
-                </div>
-            </a>`).join('')}
-    </div>
-
-    <!-- Latest articles -->
-    ${sectionHeader('Latest Articles', 'Most recent items across all projects')}
-    <div class="bg-surface-2/60 rounded-2xl overflow-hidden card-glow-top">
-        ${articles.slice(0, 5).map(a => `
-            <div class="flex items-start gap-4 p-5 data-row border-b border-outline/20 last:border-0">
-                <div class="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${a.is_relevant ? 'bg-primary/10' : 'bg-surface-3/50'}">
-                    <span class="material-icons-outlined ${a.is_relevant ? 'text-primary' : 'text-on-surface-muted'}" style="font-size: 20px;">${a.is_relevant ? 'check_circle' : 'radio_button_unchecked'}</span>
-                </div>
-                <div class="flex-1 min-w-0">
-                    <div class="font-medium mb-1">${a.title}</div>
-                    <div class="flex items-center gap-3 text-xs text-on-surface-muted">
-                        <span class="font-mono">${a.project_name}</span>
-                        <span>·</span>
-                        <span>${a.published_at_vn}</span>
-                    </div>
-                </div>
-                <div class="flex items-center gap-4 flex-shrink-0">
-                    <div class="text-right">
-                        <div class="font-bold text-sm">${a.relevance_score}</div>
-                        <div class="text-[10px] text-on-surface-muted uppercase">Score</div>
-                    </div>
-                    <div class="w-24 h-1.5 bg-surface-4 rounded-full overflow-hidden">
-                        <div class="h-full rounded-full transition-all" style="width: ${a.relevance_score}%; background: linear-gradient(90deg, var(--primary), var(--tertiary));"></div>
-                    </div>
-                </div>
-            </div>`).join('')}
-    </div>`;
-
-    // Daily line chart
-    new Chart(document.getElementById('chartDaily'), {
-        type: 'line',
-        data: {
-            labels: days,
-            datasets: [{
-                label: 'Articles',
-                data: dailyCounts,
-                borderColor: '#85adff',
-                backgroundColor: (c) => {
-                    const g = c.chart.ctx.createLinearGradient(0, 0, 0, 180);
-                    g.addColorStop(0, 'rgba(133, 173, 255, 0.35)');
-                    g.addColorStop(1, 'rgba(133, 173, 255, 0)');
-                    return g;
-                },
-                fill: true, tension: 0.42, borderWidth: 2.5,
-                pointRadius: 4, pointHoverRadius: 6,
-                pointBackgroundColor: '#85adff', pointBorderColor: '#060e20', pointBorderWidth: 2,
-            }],
-        },
-        options: {
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false }, tooltip: { backgroundColor: '#091328', borderColor: '#2a3352', borderWidth: 1, padding: 12 } },
-            scales: {
-                y: { ticks: { color: '#7b86a8', font: { size: 10 } }, grid: { color: 'rgba(42, 51, 82, 0.2)' }, beginAtZero: true },
-                x: { ticks: { color: '#7b86a8', font: { size: 10 } }, grid: { display: false } },
-            },
-        },
-    });
-
-    // Project bar chart
-    new Chart(document.getElementById('chartProjects'), {
-        type: 'bar',
-        data: {
-            labels: Object.keys(byProject),
-            datasets: [{
-                data: Object.values(byProject),
-                backgroundColor: (ctx) => {
-                    const c = ctx.chart.ctx.createLinearGradient(0, 0, 0, 140);
-                    c.addColorStop(0, 'rgba(172, 138, 255, 0.8)');
-                    c.addColorStop(1, 'rgba(133, 173, 255, 0.2)');
-                    return c;
-                },
-                borderRadius: 8, borderSkipped: false, barPercentage: 0.6,
-            }],
-        },
-        options: {
-            maintainAspectRatio: false, indexAxis: 'y',
-            plugins: { legend: { display: false }, tooltip: { backgroundColor: '#091328' } },
-            scales: {
-                x: { ticks: { color: '#7b86a8', font: { size: 11 } }, grid: { color: 'rgba(42, 51, 82, 0.3)' }, beginAtZero: true },
-                y: { ticks: { color: '#7b86a8', font: { size: 11 } }, grid: { display: false } },
-            },
-        },
-    });
-
-    // Relevance doughnut
-    new Chart(document.getElementById('chartRelevance'), {
-        type: 'doughnut',
-        data: {
-            labels: ['Relevant', 'Irrelevant'],
-            datasets: [{
-                data: [relevant, total - relevant],
-                backgroundColor: ['#85adff', '#192540'],
-                borderWidth: 0, borderRadius: 8, spacing: 4,
-            }],
-        },
-        options: {
-            cutout: '72%', maintainAspectRatio: false,
-            plugins: { legend: { display: false }, tooltip: { enabled: false } },
-        },
-    });
-}
 
 // ==================== Projects page ====================
 async function renderProjects() {
@@ -1522,26 +1224,20 @@ function openAccessModal(projectName) {
 
 function openProjectModal() {
     showModal('New Project', 'folder_special', `
-        ${field('Project ID (slug)', 'p_name', '', 'font-mono', 'e.g. legal_task')}
-        ${field('Tên hiển thị', 'p_display_name', '', '', 'e.g. Legal Task')}
-        ${field('Version', 'p_version', '1.0.0', 'font-mono')}
-        ${field('Description', 'p_desc', '')}
-        ${field('Owner', 'p_owner', '')}
+        ${field('Project Name', 'p_display_name', '', '', 'e.g. Legal Task')}
         <div class="flex gap-6 pt-2">
             ${checkbox('p_approval', 'Require approval', false)}
-            ${checkbox('p_enabled', 'Enabled', true)}
         </div>
     `, async () => {
-        const payload = {
-            project_name: val('p_name').trim().replace(/\s+/g, '_'),
-            name: val('p_display_name'),
-            version: val('p_version') || '1.0.0',
-            description: val('p_desc'),
-            owner: val('p_owner'),
+        const name = val('p_display_name').trim();
+        if (!name) throw new Error('Project Name là bắt buộc');
+        const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+        await Api.createProject({
+            project_name: slug,
+            name,
             require_approval: check('p_approval'),
-            enabled: check('p_enabled'),
-        };
-        await Api.createProject(payload);
+            enabled: true,
+        });
         await renderProjects();
     });
 }
