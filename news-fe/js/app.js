@@ -610,121 +610,84 @@ async function renderAdminUsers() {
         <span class="material-icons-outlined animate-spin mr-3">refresh</span> Loading…
     </div>`;
 
-    const [users, projects] = await Promise.all([Api.getUsers(), Api.getProjects()]);
-    const projectAccess = await Promise.all(projects.map(p => Api.getAccess(p.project_name)));
+    const users = await Api.getUsers();
 
-    const roleStyle = { admin: 'bg-tertiary/15 text-tertiary', editor: 'bg-primary/15 text-primary', viewer: 'bg-surface-4 text-on-surface-muted' };
+    const statusBadgeUser = s => s === 'active'
+        ? `<span class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-accent-success/10 text-accent-success border border-accent-success/20"><span class="w-1.5 h-1.5 rounded-full bg-accent-success"></span>Active</span>`
+        : `<span class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-surface-3 text-on-surface-muted border border-outline/30"><span class="w-1.5 h-1.5 rounded-full bg-on-surface-muted"></span>${s || 'inactive'}</span>`;
 
     app.innerHTML = `
-    ${pageHeader('Users & Access', `${users.length} users · Manage who accesses which project`,
-        btnPrimary('New User', 'openUserModal()', 'person_add')
-    )}
+    ${pageHeader('Users & Access', `${users.length} users`, btnPrimary('New User', 'openUserModal()', 'person_add'))}
 
-    <!-- KPI -->
-    <div class="grid grid-cols-4 gap-4 mb-8">
-        ${kpiCard({ icon: 'group',        label: 'Total Users', value: users.length,                                  color: 'primary' })}
-        ${kpiCard({ icon: 'shield',       label: 'Admins',      value: users.filter(u => u.role === 'admin').length,  color: 'tertiary' })}
-        ${kpiCard({ icon: 'edit',         label: 'Editors',     value: users.filter(u => u.role === 'editor').length, color: 'secondary' })}
-        ${kpiCard({ icon: 'check_circle', label: 'Active',      value: users.filter(u => u.status === 'active').length, color: 'accent-success' })}
-    </div>
-
-    <!-- Users table -->
-    <div class="bg-surface-2/60 rounded-2xl overflow-hidden card-glow-top mb-10">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-outline/20">
-            <h3 class="font-display font-bold text-lg">Users</h3>
-        </div>
+    <div class="bg-surface-2/60 rounded-2xl overflow-hidden card-glow-top">
+        <div class="overflow-x-auto">
         <table class="w-full text-sm">
-            <thead class="text-left text-on-surface-muted text-[10px] uppercase tracking-[0.15em] bg-surface-3/30">
+            <thead class="text-left text-on-surface-muted text-[10px] uppercase tracking-[0.15em] bg-surface-3/30 border-b border-outline/20">
                 <tr>
-                    <th class="px-6 py-3.5">User</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th></th>
+                    <th class="px-5 py-3.5 font-semibold">ID</th>
+                    <th class="px-5 py-3.5 font-semibold">Knox ID</th>
+                    <th class="px-5 py-3.5 font-semibold">Full Name</th>
+                    <th class="px-5 py-3.5 font-semibold">Department</th>
+                    <th class="px-5 py-3.5 font-semibold">Group</th>
+                    <th class="px-5 py-3.5 font-semibold">Team</th>
+                    <th class="px-5 py-3.5 font-semibold">Status</th>
+                    <th class="px-5 py-3.5 font-semibold">Actions</th>
                 </tr>
             </thead>
             <tbody>
-                ${users.map(u => {
-                    const initials = u.name.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase();
-                    return `<tr class="border-t border-outline/20 data-row">
-                        <td class="px-6 py-4">
-                            <div class="flex items-center gap-3">
-                                <div class="w-9 h-9 rounded-full bg-gradient-to-br from-primary/30 to-tertiary/30 flex items-center justify-center text-xs font-bold">${initials}</div>
-                                <div>
-                                    <div class="font-medium">${u.name}</div>
-                                    <div class="text-xs text-on-surface-muted">${u.email}</div>
-                                </div>
+                ${users.length === 0
+                    ? `<tr><td colspan="8" class="px-5 py-16 text-center text-on-surface-muted text-sm">Chưa có user nào.</td></tr>`
+                    : users.map(u => `
+                <tr class="border-t border-outline/20 data-row hover:bg-surface-3/20 transition">
+                    <td class="px-5 py-3.5 font-mono text-xs text-on-surface-muted">#${u.id}</td>
+                    <td class="px-5 py-3.5 font-mono text-sm font-medium">${u.knoxid || '—'}</td>
+                    <td class="px-5 py-3.5">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-primary/30 to-tertiary/30 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                                ${(u.name || u.knoxid || '?').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase()}
                             </div>
-                        </td>
-                        <td><span class="badge ${roleStyle[u.role] || ''}">${u.role}</span></td>
-                        <td>
-                            <span class="badge ${u.status === 'active' ? 'bg-accent-success/10 text-accent-success' : 'bg-surface-4 text-on-surface-muted'}">
-                                <span class="w-1 h-1 rounded-full bg-current"></span>${u.status}
-                            </span>
-                        </td>
-                        <td class="px-6">
-                            <div class="flex items-center gap-3">
-                                <button onclick='openUserModal(${JSON.stringify(u)})' class="text-primary hover:underline text-xs">Edit</button>
-                                <button onclick='confirmDeleteUser(${u.id})' class="text-accent-error hover:underline text-xs">Delete</button>
-                            </div>
-                        </td>
-                    </tr>`;
-                }).join('')}
+                            <span class="font-medium">${u.name || '—'}</span>
+                        </div>
+                    </td>
+                    <td class="px-5 py-3.5 text-xs text-on-surface-muted">${u.department || '—'}</td>
+                    <td class="px-5 py-3.5 text-xs text-on-surface-muted">${u.group_name || '—'}</td>
+                    <td class="px-5 py-3.5 text-xs text-on-surface-muted">${u.team || '—'}</td>
+                    <td class="px-5 py-3.5">${statusBadgeUser(u.status)}</td>
+                    <td class="px-5 py-3.5">
+                        <div class="flex items-center gap-3">
+                            <button onclick='openUserModal(${JSON.stringify(u).replace(/'/g,"&#39;")})' class="text-primary hover:underline text-xs font-medium">Edit</button>
+                            <button onclick='confirmDeleteUser(${u.id})' class="text-accent-error hover:underline text-xs font-medium">Xóa</button>
+                        </div>
+                    </td>
+                </tr>`).join('')}
             </tbody>
         </table>
-    </div>
-
-    <!-- Project Access Matrix -->
-    ${sectionHeader('Project Access', 'Assign users to projects and set their roles')}
-    <div class="space-y-4">
-        ${projects.map((p, i) => {
-            const access = projectAccess[i] || [];
-            return `<div class="bg-surface-2/60 rounded-2xl p-5 card-glow-top">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center gap-3">
-                        <div class="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                            <span class="material-icons-outlined text-primary" style="font-size: 18px;">folder_special</span>
-                        </div>
-                        <div>
-                            <div class="font-mono font-semibold">${p.project_name}</div>
-                            <div class="text-xs text-on-surface-muted">${access.length} user${access.length !== 1 ? 's' : ''} with access</div>
-                        </div>
-                    </div>
-                    <button onclick='openGrantAccessModal("${p.project_name}", ${JSON.stringify(users)})' class="flex items-center gap-1 text-primary text-xs hover:underline">
-                        <span class="material-icons-outlined" style="font-size: 16px;">person_add</span> Grant Access
-                    </button>
-                </div>
-                ${access.length === 0
-                    ? '<div class="text-xs text-on-surface-muted pl-12">No users granted — defaults to all admins</div>'
-                    : `<div class="grid grid-cols-2 gap-2 pl-12">
-                        ${access.map(u => `
-                        <div class="flex items-center gap-3 bg-surface-3/40 px-3 py-2.5 rounded-xl">
-                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-tertiary/20 flex items-center justify-center text-xs font-semibold flex-shrink-0">
-                                ${(u.name || u.email).split(/[\s@]/).filter(Boolean).slice(0,2).map(s=>s[0].toUpperCase()).join('')}
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <div class="text-sm truncate">${u.name || '—'}</div>
-                                <div class="text-[10px] text-on-surface-muted truncate">${u.email}</div>
-                            </div>
-                            <span class="badge ${roleStyle[u.role] || ''} text-[10px]">${u.role}</span>
-                            <button onclick='revokeProjectAccess("${p.project_name}", ${u.id})' class="text-on-surface-muted hover:text-accent-error flex-shrink-0">
-                                <span class="material-icons-outlined" style="font-size: 16px;">close</span>
-                            </button>
-                        </div>`).join('')}
-                    </div>`}
-            </div>`;
-        }).join('')}
+        </div>
     </div>`;
 }
 
 function openUserModal(user) {
-    const d = user || { id: null, email: '', name: '', role: 'viewer', status: 'active' };
+    const d = user || { id: null, knoxid: '', name: '', department: '', group_name: '', team: '', role: 'viewer', status: 'active' };
     showModal(user ? 'Edit User' : 'New User', 'person', `
-        ${field('Name', 'u_name', d.name)}
-        ${field('Email', 'u_email', d.email)}
-        ${select('u_role', 'Role', d.role, [['admin','Admin — full access'],['editor','Editor — can modify'],['viewer','Viewer — read only']])}
-        ${select('u_status', 'Status', d.status, [['active','Active'],['inactive','Inactive']])}
+        ${field('Knox ID', 'u_knoxid', d.knoxid || '', 'font-mono', 'e.g. nhantt')}
+        ${field('Full Name', 'u_name', d.name || '')}
+        <div class="grid grid-cols-3 gap-3">
+            ${field('Department', 'u_dept', d.department || '', '', 'e.g. Legal')}
+            ${field('Group', 'u_group', d.group_name || '', '', 'e.g. Compliance')}
+            ${field('Team', 'u_team', d.team || '', '', 'e.g. Risk')}
+        </div>
+        ${select('u_status', 'Status', d.status || 'active', [['active','Active'],['inactive','Inactive']])}
     `, async () => {
-        const payload = { name: val('u_name'), email: val('u_email'), role: val('u_role'), status: val('u_status') };
+        const knoxid = val('u_knoxid').trim();
+        if (!knoxid) throw new Error('Knox ID là bắt buộc');
+        const payload = {
+            email: knoxid,
+            name: val('u_name'),
+            department: val('u_dept'),
+            group_name: val('u_group'),
+            team: val('u_team'),
+            status: val('u_status'),
+        };
         await Api.saveUser(payload, d.id);
         await renderAdminUsers();
     });
@@ -897,7 +860,6 @@ function renderAgents(el, agents, projectName) {
                             <div class="text-xs text-on-surface-muted">${a.role}</div>
                         </div>
                     </div>
-                    ${toggle(a.enabled)}
                 </div>
                 <p class="text-xs text-on-surface-muted mb-3 line-clamp-2">${a.goal}</p>
                 <div class="flex items-center justify-between text-xs pt-3 border-t border-outline/30">
@@ -913,39 +875,26 @@ function renderTasks(el, tasks, agents, projectName) {
     const agentOpts = agents.map(a => `<option value="${a.agent_key}">${a.agent_key} — ${a.role}</option>`).join('');
     el.innerHTML = `
     ${sectionHeader('Tasks', 'Work each agent performs')}
-
     ${tasks.length === 0 ? emptyState('checklist', 'No tasks yet.') : `
-    <div class="space-y-3 mb-5">
+    <div class="grid grid-cols-3 gap-4">
         ${tasks.map(t => `
-            <div class="card-hover bg-surface-2/60 rounded-2xl p-5 card-glow-top">
+            <div class="card-hover bg-surface-2/60 rounded-2xl p-5 card-glow-top flex flex-col gap-3">
                 <div class="flex items-start justify-between">
-                    <div class="flex items-start gap-4 flex-1 min-w-0">
-                        <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                            <span class="material-icons-outlined text-primary" style="font-size: 20px;">checklist</span>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center gap-3 mb-1">
-                                <div class="font-mono text-sm font-medium">${t.task_key}</div>
-                                ${toggle(t.enabled)}
-                            </div>
-                            <div class="text-xs text-on-surface-muted mb-2">→ agent <code class="text-primary">${t.agent_key}</code>${(t.context_task_keys || []).length ? ` · after <code class="text-tertiary">${(t.context_task_keys||[]).join(', ')}</code>` : ''}</div>
-                            <p class="text-sm text-on-surface/90 line-clamp-2">${t.description}</p>
-                        </div>
+                    <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <span class="material-icons-outlined text-primary" style="font-size: 20px;">checklist</span>
                     </div>
-                    <button onclick='openTaskModal("${projectName}", ${JSON.stringify(t)}, \`${agentOpts.replace(/`/g, '\\`')}\`)' class="text-primary hover:underline text-xs flex-shrink-0 ml-4">Edit</button>
+                    ${toggle(t.enabled)}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="font-mono text-sm font-semibold mb-1">${t.task_key}</div>
+                    <div class="text-xs text-on-surface-muted mb-2">→ <code class="text-primary">${t.agent_key}</code>${(t.context_task_keys || []).length ? `<br>after <code class="text-tertiary">${(t.context_task_keys||[]).join(', ')}</code>` : ''}</div>
+                    <p class="text-xs text-on-surface/80 line-clamp-3">${t.description}</p>
+                </div>
+                <div class="border-t border-outline/20 pt-3 flex justify-end">
+                    <button onclick='openTaskModal("${projectName}", ${JSON.stringify(t)}, \`${agentOpts.replace(/`/g, '\\`')}\`)' class="text-primary hover:underline text-xs">Edit</button>
                 </div>
             </div>`).join('')}
-    </div>`}
-
-    <div class="bg-gradient-to-br from-surface-2/40 to-tertiary/5 border border-tertiary/20 rounded-2xl p-5">
-        <div class="flex items-center gap-2 mb-3">
-            <span class="material-icons-outlined text-tertiary" style="font-size: 18px;">tips_and_updates</span>
-            <span class="text-sm font-semibold">Template Variables</span>
-        </div>
-        <div class="flex flex-wrap gap-2">
-            ${['source_language', 'target_language', 'article_title', 'article_content', 'title', 'summary', 'content', 'analysis', 'recommendation'].map(v => `<code class="bg-surface-3/60 text-tertiary px-2 py-1 rounded text-xs font-mono">{${v}}</code>`).join('')}
-        </div>
-    </div>`;
+    </div>`}`;
 }
 
 // ==================== Sources ====================
@@ -1007,42 +956,27 @@ function renderSchedulers(el, schedulers, projectName) {
 
 // ==================== Emails ====================
 function renderEmails(el, emails, tasks, projectName) {
-    const taskOpts = tasks.map(t => `<option value="${t.task_key}">${t.task_key}</option>`).join('');
-    const icons  = { user: 'person', group: 'group', department: 'business' };
-    const colors = { user: 'text-primary bg-primary/10', group: 'text-tertiary bg-tertiary/10', department: 'text-secondary bg-secondary/10' };
-
     el.innerHTML = `
-    ${sectionHeader('Email Recipients', 'Danh sách email project sẽ gửi thông báo',
-        `<button onclick='openEmailModal("${projectName}", "", \`${taskOpts.replace(/`/g,'\\`')}\`)' class="btn-primary px-3 py-1.5 rounded-lg text-xs flex items-center gap-1">
+    ${sectionHeader('Email Recipients', 'Danh sách Knox ID nhận thông báo của project',
+        `<button onclick='openEmailModal("${projectName}")' class="btn-primary px-3 py-1.5 rounded-lg text-xs flex items-center gap-1">
             <span class="material-icons-outlined" style="font-size:14px;">add</span> Add
         </button>`
     )}
-    ${emails.length === 0 ? emptyState('mail', 'Chưa có email nào được cấu hình.') : `
+    ${emails.length === 0 ? emptyState('mail', 'Chưa có người nhận nào được cấu hình.') : `
     <div class="bg-surface-2/60 rounded-2xl overflow-hidden card-glow-top">
         <table class="w-full text-sm">
             <thead>
                 <tr class="border-b border-outline/30 text-left text-xs text-on-surface-muted uppercase tracking-wider">
-                    <th class="px-5 py-3">Email</th>
+                    <th class="px-5 py-3">Knox ID</th>
                     <th class="px-5 py-3">Tên</th>
-                    <th class="px-5 py-3">Loại</th>
-                    <th class="px-5 py-3">Task</th>
                     <th class="px-5 py-3"></th>
                 </tr>
             </thead>
             <tbody>
                 ${emails.map(r => `
                 <tr class="border-t border-outline/20 data-row">
-                    <td class="px-5 py-3">
-                        <div class="flex items-center gap-2">
-                            <div class="w-7 h-7 rounded-lg ${colors[r.recipient_type] || 'text-primary bg-primary/10'} flex items-center justify-center flex-shrink-0">
-                                <span class="material-icons-outlined" style="font-size:14px;">${icons[r.recipient_type] || 'mail'}</span>
-                            </div>
-                            <span class="font-mono text-xs">${r.email}</span>
-                        </div>
-                    </td>
-                    <td class="px-5 py-3 text-xs">${r.name || '—'}</td>
-                    <td class="px-5 py-3"><span class="badge bg-surface-3/60 text-on-surface-muted text-[10px] uppercase">${r.recipient_type}</span></td>
-                    <td class="px-5 py-3 font-mono text-xs text-primary">${r.task_key || '—'}</td>
+                    <td class="px-5 py-3 font-mono text-xs font-medium">${r.email || '—'}</td>
+                    <td class="px-5 py-3 text-xs text-on-surface-muted">${r.name || '—'}</td>
                     <td class="px-5 py-3 text-right">
                         <button onclick='removeEmailRecipient("${projectName}", ${r.id})' class="text-on-surface-muted hover:text-accent-error">
                             <span class="material-icons-outlined" style="font-size:16px;">close</span>
@@ -1327,20 +1261,19 @@ async function renderLogs(el, projectName, agents) {
 function openAgentModal(projectName, agent) {
     const d = agent || { agent_key: '', role: '', goal: '', backstory: '', llm: '', tools: [], verbose: false, enabled: true };
     showModal(agent ? 'Edit Agent' : 'New Agent', 'smart_toy', `
-        ${field('Agent Key', 'f_agent_key', d.agent_key, 'font-mono')}
+        ${field('Agent Name', 'f_agent_key', d.agent_key, 'font-mono')}
         ${field('Role', 'f_role', d.role)}
         ${textarea('Goal', 'f_goal', d.goal, 3)}
         ${textarea('Backstory', 'f_backstory', d.backstory, 3)}
         ${field('LLM Model', 'f_llm', d.llm || '', 'font-mono', 'openrouter/... | ollama/... | openai/...')}
         <div class="flex gap-6 pt-2">
             ${checkbox('f_verbose', 'Verbose', d.verbose)}
-            ${checkbox('f_enabled', 'Enabled', d.enabled)}
         </div>
     `, async () => {
         const payload = {
             agent_key: val('f_agent_key'), role: val('f_role'),
             goal: val('f_goal'), backstory: val('f_backstory'),
-            llm: val('f_llm'), verbose: check('f_verbose'), enabled: check('f_enabled'),
+            llm: val('f_llm'), verbose: check('f_verbose'),
         };
         await Api.saveAgent(projectName, payload, agent?.agent_key);
     });
@@ -1369,8 +1302,17 @@ function openTaskModal(projectName, task, agentOpts) {
 
 function openSourceModal(projectName, source) {
     const d = source || { site_id: '', name: '', latest_page_url: '', domain: '', language: 'vi', listing_selector: '', content_selector: '', article_url_pattern: '', active: true };
+    const siteIdRow = source
+        ? `<div class="flex items-center gap-3 p-3 bg-surface-3/30 rounded-xl">
+               <span class="material-icons-outlined text-on-surface-muted" style="font-size:16px;">tag</span>
+               <div>
+                   <div class="font-mono text-sm font-medium">${d.site_id}</div>
+                   <div class="text-xs text-on-surface-muted">Site ID — tự động tạo, không thể thay đổi</div>
+               </div>
+           </div>`
+        : '';
     showModal(source ? 'Edit Source' : 'New Source', 'language', `
-        ${field('Site ID', 's_site_id', d.site_id, 'font-mono', 'vd: tn-legal-1')}
+        ${siteIdRow}
         ${field('Name', 's_name', d.name, '', 'Tên trang')}
         ${field('Listing URL', 's_url', d.latest_page_url, 'font-mono', 'https://example.com/tin-moi.htm')}
         ${field('Domain', 's_domain', d.domain, 'font-mono', 'example.com')}
@@ -1382,7 +1324,6 @@ function openSourceModal(projectName, source) {
     `, async () => {
         const payload = {
             project_name: projectName,
-            site_id: val('s_site_id'),
             name: val('s_name'),
             latest_page_url: val('s_url'),
             domain: val('s_domain'),
@@ -1392,7 +1333,7 @@ function openSourceModal(projectName, source) {
             article_url_pattern: val('s_url_pattern'),
             active: check('s_active'),
         };
-        await Api.saveSource(payload, source?.site_id);
+        await Api.saveSource(payload, source ? source.site_id : null);
     });
 }
 
@@ -1505,32 +1446,78 @@ function openSchedulerModal(projectName, job) {
     }, 0);
 }
 
-function openEmailModal(projectName, taskKey, taskOpts) {
-    const taskSel = taskOpts
-        ? `<div><label class="text-xs uppercase tracking-wider text-on-surface-muted font-semibold">Task</label>
-               <select id="e_task" class="w-full mt-2 bg-surface-3/60 rounded-xl px-4 py-2.5 text-sm border border-outline/30">${taskOpts}</select></div>`
-        : `<div><label class="text-xs uppercase tracking-wider text-on-surface-muted font-semibold">Task</label>
-               <input id="e_task" value="${taskKey}" class="w-full mt-2 bg-surface-3/40 rounded-xl px-4 py-2.5 text-sm font-mono opacity-60 border border-outline/30"></div>`;
+function _knoxSearchHtml(inputId, resultId) {
+    return `<div>
+        <label class="text-xs uppercase tracking-wider text-on-surface-muted font-semibold">Knox ID</label>
+        <div class="flex gap-2 mt-2">
+            <input id="${inputId}" class="flex-1 bg-surface-3/60 rounded-xl px-4 py-2.5 text-sm border border-outline/30 font-mono" placeholder="e.g. nhantt">
+            <button type="button" id="${inputId}_btn"
+                class="px-3 py-2.5 rounded-xl bg-surface-3/60 hover:bg-surface-4 border border-outline/30 transition text-on-surface-muted flex items-center gap-1 text-sm">
+                <span class="material-icons-outlined" style="font-size:18px;">search</span>
+            </button>
+        </div>
+        <div id="${resultId}" class="hidden mt-2 px-4 py-3 bg-surface-3/30 rounded-xl text-sm"></div>
+    </div>`;
+}
+
+async function _knoxSearch(inputId, resultId, nameTargetId) {
+    const knoxid = document.getElementById(inputId).value.trim();
+    const el = document.getElementById(resultId);
+    if (!knoxid) return;
+    el.classList.remove('hidden');
+    el.innerHTML = '<span class="text-on-surface-muted text-xs">Đang tìm…</span>';
+    try {
+        const u = await Api.searchUser(knoxid);
+        el.innerHTML = `<div class="flex items-center gap-3">
+            <span class="material-icons-outlined text-accent-success" style="font-size:18px;">check_circle</span>
+            <div>
+                <div class="font-medium text-sm">${u.name || knoxid}</div>
+                <div class="text-xs text-on-surface-muted mt-0.5">${u.department || ''} ${u.group_name ? '· ' + u.group_name : ''} ${u.team ? '· ' + u.team : ''}</div>
+            </div>
+        </div>`;
+        if (nameTargetId) document.getElementById(nameTargetId).value = u.name || '';
+    } catch(e) {
+        el.innerHTML = `<div class="flex items-center gap-2 text-yellow-400 text-xs">
+            <span class="material-icons-outlined" style="font-size:15px;">info</span>
+            Knox ID chưa có trong hệ thống — sẽ tạo mới khi lưu.
+        </div>`;
+        if (nameTargetId) document.getElementById(nameTargetId).value = '';
+    }
+}
+
+function _wireKnoxSearch(inputId, resultId, nameTargetId) {
+    setTimeout(() => {
+        const btn = document.getElementById(inputId + '_btn');
+        const inp = document.getElementById(inputId);
+        if (!btn || !inp) return;
+        btn.addEventListener('click', () => _knoxSearch(inputId, resultId, nameTargetId));
+        inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); _knoxSearch(inputId, resultId, nameTargetId); } });
+    }, 0);
+}
+
+function openEmailModal(projectName) {
     showModal('Add Recipient', 'mail', `
-        ${taskSel}
-        ${select('e_type', 'Recipient Type', 'user', [['user','User'],['group','Group'],['department','Department']])}
-        ${field('Knox ID / Email', 'e_knoxid', '', 'font-mono', 'e.g. nhantt hoặc team@company.com')}
-        ${field('Tên (tuỳ chọn)', 'e_name', '')}
+        ${_knoxSearchHtml('e_knoxid', 'e_result')}
+        <input id="e_name" type="hidden" value="">
     `, async () => {
-        const payload = { task_key: val('e_task'), recipient_type: val('e_type'), email: val('e_knoxid'), name: val('e_name') };
-        await Api.addEmail(projectName, payload);
+        const knoxid = val('e_knoxid').trim();
+        if (!knoxid) throw new Error('Vui lòng nhập Knox ID');
+        await Api.addEmail(projectName, { email: knoxid, name: document.getElementById('e_name').value });
     });
+    _wireKnoxSearch('e_knoxid', 'e_result', 'e_name');
 }
 
 function openAccessModal(projectName) {
     showModal('Grant Access', 'admin_panel_settings', `
-        ${field('Knox ID', 'a_knoxid', '', 'font-mono', 'e.g. nhantt')}
-        ${field('Tên (tuỳ chọn)', 'a_name', '')}
+        ${_knoxSearchHtml('a_knoxid', 'a_result')}
+        <input id="a_name" type="hidden" value="">
         ${select('a_role', 'Role', 'viewer', [['viewer','Viewer — read only'],['editor','Editor — can modify'],['admin','Admin — full access']])}
     `, async () => {
-        const payload = { knoxid: val('a_knoxid'), name: val('a_name'), role: val('a_role') };
-        await Api.grantAccess(projectName, payload);
+        const knoxid = val('a_knoxid').trim();
+        if (!knoxid) throw new Error('Vui lòng nhập Knox ID');
+        await Api.grantAccess(projectName, { knoxid, name: document.getElementById('a_name').value, role: val('a_role') });
     });
+    _wireKnoxSearch('a_knoxid', 'a_result', 'a_name');
 }
 
 function openProjectModal() {

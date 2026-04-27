@@ -112,6 +112,7 @@ const Api = {
 
     // ── Users (Admin) ─────────────────────────────────────────────────────────
     getUsers()                     { return get('users'); },
+    searchUser(knoxid)             { return get('users', `&q=${encodeURIComponent(knoxid)}`); },
     saveUser(payload, originalId) {
         return originalId
             ? put(`users/${originalId}`, payload)

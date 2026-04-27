@@ -67,20 +67,28 @@ try {
     if ($s0 === 'users') {
         if (!$s1) {
             if ($method === 'GET') {
-                ok($db->query('SELECT * FROM na_users ORDER BY created_at DESC')->fetchAll());
+                if (!empty($_GET['q'])) {
+                    $q    = trim($_GET['q']);
+                    $stmt = $db->prepare('SELECT id, email AS knoxid, name, department, group_name, team, status FROM na_users WHERE email = ? LIMIT 1');
+                    $stmt->execute(array($q));
+                    $u = $stmt->fetch();
+                    if (!$u) err('Knox ID không tồn tại trong hệ thống.', 404);
+                    ok($u);
+                }
+                ok($db->query('SELECT id, email AS knoxid, name, department, group_name, team, role, status, created_at FROM na_users ORDER BY created_at DESC')->fetchAll());
             }
             if ($method === 'POST') {
-                requireFields($body, array('email', 'name', 'role'));
-                $db->prepare('INSERT INTO na_users (email, name, role, status) VALUES (?, ?, ?, ?)')
-                   ->execute(array($body['email'], $body['name'], $body['role'], bodyVal($body, 'status', 'active')));
+                requireFields($body, array('email', 'name'));
+                $db->prepare('INSERT INTO na_users (email, name, role, status, department, group_name, team) VALUES (?, ?, ?, ?, ?, ?, ?)')
+                   ->execute(array($body['email'], $body['name'], bodyVal($body, 'role', 'viewer'), bodyVal($body, 'status', 'active'), bodyVal($body, 'department'), bodyVal($body, 'group_name'), bodyVal($body, 'team')));
                 ok(array('id' => (int) $db->lastInsertId()), 201);
             }
         } else {
             $uid = (int) $s1;
             if ($method === 'PUT') {
-                requireFields($body, array('email', 'name', 'role'));
-                $db->prepare('UPDATE na_users SET email=?, name=?, role=?, status=? WHERE id=?')
-                   ->execute(array($body['email'], $body['name'], $body['role'], bodyVal($body, 'status', 'active'), $uid));
+                requireFields($body, array('email', 'name'));
+                $db->prepare('UPDATE na_users SET email=?, name=?, role=?, status=?, department=?, group_name=?, team=? WHERE id=?')
+                   ->execute(array($body['email'], $body['name'], bodyVal($body, 'role', 'viewer'), bodyVal($body, 'status', 'active'), bodyVal($body, 'department'), bodyVal($body, 'group_name'), bodyVal($body, 'team'), $uid));
                 ok(array('ok' => true));
             }
             if ($method === 'DELETE') {
@@ -237,9 +245,9 @@ try {
                     ok($stmt->fetchAll());
                 }
                 if ($method === 'POST') {
-                    requireFields($body, array('email', 'task_key'));
+                    requireFields($body, array('email'));
                     $db->prepare('INSERT INTO na_email_recipients (project_name, task_key, email, recipient_type, name) VALUES (?, ?, ?, ?, ?)')
-                       ->execute(array($name, $body['task_key'], $body['email'], bodyVal($body, 'recipient_type', 'user'), bodyVal($body, 'name')));
+                       ->execute(array($name, bodyVal($body, 'task_key'), $body['email'], bodyVal($body, 'recipient_type', 'user'), bodyVal($body, 'name')));
                     ok(array('id' => (int) $db->lastInsertId()), 201);
                 }
             } else {
@@ -355,10 +363,24 @@ try {
                 ok($rows);
             }
             if ($method === 'POST') {
-                requireFields($body, array('site_id', 'project_name', 'latest_page_url'));
+                requireFields($body, array('project_name', 'latest_page_url'));
+                // Auto-generate site_id if not provided
+                if (!empty($body['site_id'])) {
+                    $siteId = $body['site_id'];
+                } else {
+                    $prefix = preg_replace('/[^a-z0-9]/', '', strtolower(bodyVal($body, 'project_name', 'src')));
+                    $prefix = substr($prefix, 0, 8);
+                    $siteId = null;
+                    do {
+                        $candidate = $prefix . '_' . substr(bin2hex(openssl_random_pseudo_bytes(3)), 0, 6);
+                        $chk = $db->prepare('SELECT 1 FROM na_news_sites WHERE site_id = ?');
+                        $chk->execute(array($candidate));
+                        if (!$chk->fetch()) $siteId = $candidate;
+                    } while ($siteId === null);
+                }
                 $db->prepare('INSERT INTO na_news_sites (site_id, project_name, name, latest_page_url, domain, language, listing_selector, content_selector, article_url_pattern, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-                   ->execute(array($body['site_id'], $body['project_name'], bodyVal($body, 'name'), $body['latest_page_url'], bodyVal($body, 'domain'), bodyVal($body, 'language', 'vi'), bodyVal($body, 'listing_selector'), bodyVal($body, 'content_selector'), bodyVal($body, 'article_url_pattern'), empty($body['active']) ? 0 : 1));
-                ok(array('site_id' => $body['site_id']), 201);
+                   ->execute(array($siteId, $body['project_name'], bodyVal($body, 'name'), $body['latest_page_url'], bodyVal($body, 'domain'), bodyVal($body, 'language', 'vi'), bodyVal($body, 'listing_selector'), bodyVal($body, 'content_selector'), bodyVal($body, 'article_url_pattern'), empty($body['active']) ? 0 : 1));
+                ok(array('site_id' => $siteId), 201);
             }
         } else {
             if ($method === 'PUT') {
